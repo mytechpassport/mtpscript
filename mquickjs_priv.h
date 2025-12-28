@@ -27,6 +27,7 @@ enum {
     /* javascript values */
     JS_MTAG_OBJECT,
     JS_MTAG_FLOAT64,
+    JS_MTAG_INT64,
     JS_MTAG_STRING,
     /* other special memory blocks */
     JS_MTAG_FUNCTION_BYTECODE,
