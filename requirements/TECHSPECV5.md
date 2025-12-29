@@ -49,6 +49,72 @@ All conforming runtimes **must** produce the **same 32-byte seed** for the **sam
 
 ---
 
+0-c  Runtime Gas Limit Injection
+The gas budget is no longer hard-coded. Instead the **host** supplies an unsigned 64-bit value `gasLimit` (β-reduction units) when it clones the VM snapshot. That value is bound into the deterministic seed (see updated §0-b below) and is **immutable for the lifetime of the VM**. The guest program cannot read or write `gasLimit`; it is visible only to the host adapter and to audit logs.
+
+1.  Deterministic Seed Algorithm (replacement text for §0-b)
+
+```
+seed = SHA-256(
+  AWS_Request_Id       ||
+  AWS_Account_Id       ||
+  Function_Version     ||
+  "mtpscript-v5.1"     ||
+  Snapshot_Content_Hash||
+  Gas_Limit_ASCII      ||   // ASCII decimal, no leading zeros, min="1", max="2000000000"
+)
+```
+
+2.  Host Adapter Contract (adds to §13 Runtime Model)
+
+Immediately after `clone_vm()` and before any static initialiser runs the adapter **must**:
+
+a. Read the environment variable `MTP_GAS_LIMIT`.
+   – If unset, default = 10 000 000.
+   – If set but outside the range 1–2 000 000 000 (inclusive) the adapter **must abort the request** with `MTPError: GasLimitOutOfRange`.
+b. Write the chosen value into the VM's internal `gasLimit` word (64-bit unsigned).
+c. Append the field `gasLimit=<value>` to the request audit log.
+d. Continue with effect injection and execution.
+
+3.  Gas Exhaustion Semantics (adds to §6)
+
+When the cumulative gas consumed ≥ `gasLimit` the VM **must** terminate with the deterministic error value:
+
+```
+{ "error": "GasExhausted",
+  "gasLimit": <uint64>,
+  "gasUsed": <uint64> }
+```
+
+No stack trace is emitted in production. The response body is still canonical JSON per §23 and is hashed into the response SHA-256; therefore the failure is deterministic across all conforming runtimes that receive the same `gasLimit`.
+
+4.  Annex A – Gas Cost Table (adds preamble)
+
+All opcode and built-in costs are fixed and expressed in β-reduction units. Changing `gasLimit` does **not** change the **unit cost** of any operation; it only changes the **budget** against which those costs are charged.
+
+5.  OpenAPI / Audit Schema (adds one field)
+
+Every request log entry published to the audit stream **must** include:
+
+```
+"gasLimit": { "type": "integer", "minimum": 1, "maximum": 2000000000 }
+```
+
+6.  Formal Determinism Claim (adds to §26)
+
+The SHA-256 of the response body is identical across all conforming runtimes **if and only if** the injected `gasLimit` is identical. Thus the new claim becomes:
+
+"For every MTPScript program P, compiler version C, input byte sequence I, and operator-supplied `gasLimit` L, the SHA-256 of the canonical JSON response is identical across all conforming runtimes."
+
+7.  Security Considerations
+
+- Guest code cannot query `gasLimit`; therefore knowledge of the budget cannot alter control flow.
+- The value is bound into the seed, so replaying the same request with a different budget yields a different seed and therefore a different (yet still deterministic) execution trace.
+- The upper bound 2 000 000 000 ≈ 2× the default prevents accidental DoS while staying within a 64-bit unsigned integer.
+- Operators must re-sign the snapshot if they want to hard-code a non-default limit into the build; otherwise the limit is chosen at runtime and logged.
+
+---
+
 ## 1. Design Goals (Hard Constraints)
 
 ### 1.1 Primary Goals
