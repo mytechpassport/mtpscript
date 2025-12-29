@@ -1,5 +1,5 @@
 # **MTPScript Language Specification**
-**Version 5.0**
+**Version 5.1**
 
 ---
 
@@ -40,7 +40,7 @@ seed = SHA-256(
   AWS_Request_Id       ||
   AWS_Account_Id       ||
   Function_Version     ||
-  "mtpscript-v3.2"     ||   // literal constant
+  "mtpscript-v5.1"     ||   // literal constant
   Snapshot_Content_Hash // SHA-256 of app.msqs
 )
 ```
@@ -87,6 +87,11 @@ All conforming runtimes **must** produce the **same 32-byte seed** for the **sam
 ## 3. Syntax & Grammar (Locked)
 
 *(EBNF unchanged except pipeline associativity – left-associative ➜)*
+**Addition:**
+```
+expr ::= ...
+       | await expr   // only inside `uses { Async }`
+```
 
 ---
 
@@ -153,6 +158,54 @@ Functions **excluded** from map keys.
 Effects represent **capabilities**.
 Lambdas are **pure**; only named functions may use effects.
 Host effects **must** be deterministic functions of their arguments + **request seed per §0-b** ➜
+
+**Built-in effects:**
+
+| Effect | Capability |
+|---|---|
+| `DbRead`, `DbWrite` | SQL execution |
+| `HttpOut` | Outbound HTTP |
+| `Log` | Structured logging |
+| `Async` | ➜ **Deterministic async I/O** (see §7-a) |
+
+---
+
+## 7-a. Async Effect (Deterministic Await) ➜
+
+```mtp
+effect Async {
+  await<T>(promiseHash: String, contId: Int, effectArgs: Json): Result<T, Err>
+}
+```
+
+**Surface syntax:**
+
+```mtp
+api POST /invoice
+uses { Async, DbWrite } {
+  let rate = await httpGet("https://fx.example.com/usd-eur")   // desugars to Async.await
+  let total = amount * rate
+  DbWrite.insert("invoice", total)
+  respond json({ total })
+}
+```
+
+**Compile-time desugaring:**
+
+```
+let x = await e
+≡
+let contId   = freshInt()
+let ph       = sha256(cbor(e))
+let x        = Async.await(ph, contId, e)
+```
+
+**Host adapter contract:**
+
+1. Block-synchronously execute the I/O.
+2. Cache response bytes keyed by `(seed, contId)`.
+3. Return **identical** bytes on every replay.
+4. **No JavaScript event loop visible inside VM.**
 
 ---
 
@@ -352,12 +405,13 @@ Generated JS **α-equivalent** across all compilers.
 
 > For every MTPScript program P, compiler version C, and input byte sequence I, the SHA-256 of the HTTP response body is identical across all conforming runtimes **after canonical JSON encoding per §23**, **using the deterministic seed algorithm per §0-b**, **and assuming deterministic CBOR per §2**.
 
---------------------------------------------------------
+---
+
 **Annex A – Gas Cost Table (Normative)**
-(available as machine-readable CSV in repo `/gas-v3.2.csv`)
+(available as machine-readable CSV in repo `/gas-v5.1.csv`)
 
 **Annex B – Deterministic OpenAPI Generation Rules**
-(available as JSON schema in repo `/openapi-rules-v3.2.json`)
+(available as JSON schema in repo `/openapi-rules-v5.1.json`)
 
 --------------------------------------------------------
-End of Specification 3.2
+End of Specification 5.1
