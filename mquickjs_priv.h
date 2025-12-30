@@ -257,6 +257,7 @@ JSValue js_decimal_toString(JSContext *ctx, JSValue *this_val,
                             int argc, JSValue *argv);
 JSValue js_decimal_compare(JSContext *ctx, JSValue *this_val,
                           int argc, JSValue *argv);
+int js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2);
 
 JSValue js_global_eval(JSContext *ctx, JSValue *this_val,
                        int argc, JSValue *argv);

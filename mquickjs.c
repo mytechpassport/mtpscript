@@ -5199,7 +5199,7 @@ static no_inline JSValue js_relational_slow(JSContext *ctx, OPCodeEnum op)
 
 static BOOL js_strict_eq(JSContext *ctx, JSValue op1, JSValue op2);
 
-BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
+int js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
 {
     if (op1 == op2)
         return TRUE;
@@ -16229,7 +16229,13 @@ JSValue js_decimal_toString(JSContext *ctx, JSValue *this_val,
                             int argc, JSValue *argv)
 {
     printf("js_decimal_toString called\n");
-    return JS_ToString(ctx, *this_val);
+    JSDecimal *d = JS_VALUE_TO_PTR(*this_val);
+    mtpscript_decimal_t dec = mtpscript_decimal_from_string(d->value);
+    dec.scale = d->scale;
+    mtpscript_string_t *str = mtpscript_decimal_to_string(dec);
+    JSValue result = JS_NewString(ctx, mtpscript_string_cstr(str));
+    mtpscript_string_free(str);
+    return result;
 }
 
 JSValue js_decimal_compare(JSContext *ctx, JSValue *this_val,

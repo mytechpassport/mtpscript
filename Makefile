@@ -80,7 +80,7 @@ TEST_PROGS=dtoa_test libm_test mtpsc_test phase0_test mtpsc_acceptance
 
 all: $(PROGS)
 
-MTPJS_OBJS=mtpjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
+MTPJS_OBJS=mtpjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto
 
 MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/cli/mtpsc.c
@@ -105,7 +105,7 @@ mtpsc_acceptance$(EXE): $(MTPSC_ACCEPTANCE_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 PHASE0_TEST_SOURCES = src/test/phase0_test.c
-PHASE0_TEST_OBJS = $(PHASE0_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
+PHASE0_TEST_OBJS = $(PHASE0_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
 
 src/test/phase0_test.o: src/test/phase0_test.c mtpjs_stdlib.h
 
@@ -128,7 +128,7 @@ mtpjs.o: mtpjs_stdlib.h
 # C API example
 example.o: example_stdlib.h
 
-example$(EXE): example.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
+example$(EXE): example.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 example_stdlib: example_stdlib.host.o mquickjs_build.host.o
