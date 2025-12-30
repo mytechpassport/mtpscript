@@ -104,15 +104,16 @@ elif [ "$MODE" = "--compare" ] && [ -n "$BASELINE_FILE" ]; then
     make clean && make all
 
     # Extract baseline data
-    BASELINE_TIME=$(jq -r '.build_time_seconds' "$BASELINE_FILE")
-    CURRENT_TIME=$(date +%s)
+    if command -v jq >/dev/null 2>&1; then
+        BASELINE_TIME=$(jq -r '.build_time_seconds' "$BASELINE_FILE")
+        CURRENT_TIME=$(date +%s)
 
-    # Compare executables
-    echo "=== Executable Comparison ==="
-    jq -r '.executables | keys[]' "$BASELINE_FILE" | while read exe; do
-        baseline_exists=$(jq -r ".executables.\"$exe\".exists" "$BASELINE_FILE")
-        baseline_size=$(jq -r ".executables.\"$exe\".size_bytes" "$BASELINE_FILE")
-        baseline_hash=$(jq -r ".executables.\"$exe\".sha256" "$BASELINE_FILE")
+        # Compare executables
+        echo "=== Executable Comparison ==="
+        jq -r '.executables | keys[]' "$BASELINE_FILE" | while read exe; do
+            baseline_exists=$(jq -r ".executables.\"$exe\".exists" "$BASELINE_FILE")
+            baseline_size=$(jq -r ".executables.\"$exe\".size_bytes" "$BASELINE_FILE")
+            baseline_hash=$(jq -r ".executables.\"$exe\".sha256" "$BASELINE_FILE")
 
         if [ -f "$exe" ]; then
             current_size=$(stat -f%z "$exe" 2>/dev/null || stat -c%s "$exe" 2>/dev/null || echo "0")
@@ -165,6 +166,11 @@ elif [ "$MODE" = "--compare" ] && [ -n "$BASELINE_FILE" ]; then
         exit 1
     else
         echo "✅ No errors"
+    fi
+
+    else
+        echo "⚠️  jq not available - skipping detailed comparison"
+        echo "✅ Build completed successfully (basic validation)"
     fi
 
 else
