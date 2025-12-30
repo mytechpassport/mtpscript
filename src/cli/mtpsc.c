@@ -18,6 +18,7 @@
 #include "../compiler/openapi.h"
 #include "../snapshot/snapshot.h"
 #include "../stdlib/runtime.h"
+#include "../host/npm_bridge.h"
 
 // Basic HTTP server for mtpsc serve
 #include <sys/socket.h>
@@ -34,6 +35,7 @@ void usage() {
     printf("  openapi <file>  Generate OpenAPI spec from MTPScript code\n");
     printf("  snapshot <file> Create a .msqs snapshot\n");
     printf("  serve <file>    Start local web server daemon\n");
+    printf("  npm-audit <dir> Generate audit manifest for unsafe adapters\n");
 }
 
 char *read_file(const char *filename) {
@@ -57,6 +59,26 @@ int main(int argc, char **argv) {
 
     const char *command = argv[1];
     const char *filename = argv[2];
+
+    // Handle npm-audit command (doesn't need file parsing)
+    if (strcmp(command, "npm-audit") == 0) {
+        mtpscript_audit_manifest_t *manifest = mtpscript_audit_manifest_new();
+        mtpscript_error_t *err = mtpscript_scan_unsafe_adapters(filename, manifest);
+        if (err) {
+            fprintf(stderr, "NPM audit failed: %s\n", mtpscript_string_cstr(err->message));
+            mtpscript_error_free(err);
+            mtpscript_audit_manifest_free(manifest);
+            return 1;
+        }
+
+        // Generate audit manifest
+        mtpscript_string_t *json = mtpscript_audit_manifest_to_json(manifest);
+        printf("%s\n", mtpscript_string_cstr(json));
+        mtpscript_string_free(json);
+        mtpscript_audit_manifest_free(manifest);
+        return 0;
+    }
+
     char *source = read_file(filename);
     if (!source) {
         fprintf(stderr, "Error: Could not read file %s\n", filename);

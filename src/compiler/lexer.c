@@ -9,6 +9,7 @@
 #include "lexer.h"
 #include <string.h>
 #include <ctype.h>
+#include <stdio.h>
 
 mtpscript_lexer_t *mtpscript_lexer_new(const char *source, const char *filename) {
     mtpscript_lexer_t *lexer = MTPSCRIPT_MALLOC(sizeof(mtpscript_lexer_t));
@@ -91,6 +92,9 @@ mtpscript_error_t *mtpscript_lexer_tokenize(mtpscript_lexer_t *lexer, mtpscript_
             else if (strcmp(lexeme, "return") == 0) type = MTPSCRIPT_TOKEN_RETURN;
             else if (strcmp(lexeme, "if") == 0) type = MTPSCRIPT_TOKEN_IF;
             else if (strcmp(lexeme, "else") == 0) type = MTPSCRIPT_TOKEN_ELSE;
+            else if (strcmp(lexeme, "import") == 0) type = MTPSCRIPT_TOKEN_IMPORT;
+            else if (strcmp(lexeme, "from") == 0) type = MTPSCRIPT_TOKEN_FROM;
+            else if (strcmp(lexeme, "as") == 0) type = MTPSCRIPT_TOKEN_AS;
             else if (strcmp(lexeme, "true") == 0) type = MTPSCRIPT_TOKEN_BOOL;
             else if (strcmp(lexeme, "false") == 0) type = MTPSCRIPT_TOKEN_BOOL;
             else if (strcmp(lexeme, "GET") == 0) type = MTPSCRIPT_TOKEN_GET;
@@ -108,6 +112,19 @@ mtpscript_error_t *mtpscript_lexer_tokenize(mtpscript_lexer_t *lexer, mtpscript_
                 mtpscript_string_append(buf, &ch, 1);
             }
             mtpscript_vector_push(tokens, create_token(lexer, is_decimal ? MTPSCRIPT_TOKEN_DECIMAL : MTPSCRIPT_TOKEN_INT, mtpscript_string_cstr(buf)));
+            mtpscript_string_free(buf);
+        } else if (c == '"') {
+            // String literal
+            advance(lexer); // consume opening quote
+            mtpscript_string_t *buf = mtpscript_string_new();
+            while (peek(lexer) != '"' && peek(lexer) != '\0') {
+                char ch = advance(lexer);
+                mtpscript_string_append(buf, &ch, 1);
+            }
+            if (peek(lexer) == '"') {
+                advance(lexer); // consume closing quote
+            }
+            mtpscript_vector_push(tokens, create_token(lexer, MTPSCRIPT_TOKEN_STRING, mtpscript_string_cstr(buf)));
             mtpscript_string_free(buf);
         } else {
             advance(lexer);

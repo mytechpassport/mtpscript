@@ -262,7 +262,12 @@ static mtpscript_error_t *typecheck_statement(mtpscript_statement_t *stmt, mtpsc
 }
 
 static mtpscript_error_t *typecheck_declaration(mtpscript_declaration_t *decl, mtpscript_type_env_t *env) {
-    if (decl->kind == MTPSCRIPT_DECL_FUNCTION) {
+    if (decl->kind == MTPSCRIPT_DECL_IMPORT) {
+        // Import declarations don't add to the local type environment
+        // They would be resolved by the module system during compilation
+        // For now, just validate the import syntax
+        return NULL;
+    } else if (decl->kind == MTPSCRIPT_DECL_FUNCTION) {
         mtpscript_type_env_t *local_env = mtpscript_type_env_new();
         // Add params to local env (mark as declared for immutability)
         for (size_t i = 0; i < decl->data.function.params->size; i++) {

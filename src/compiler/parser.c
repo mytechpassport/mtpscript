@@ -155,7 +155,78 @@ static mtpscript_statement_t *parse_statement(mtpscript_parser_t *parser) {
 }
 
 static mtpscript_declaration_t *parse_declaration(mtpscript_parser_t *parser) {
-    if (0 && match_token(parser, MTPSCRIPT_TOKEN_API)) { // API parsing disabled - needs more work
+    if (match_token(parser, MTPSCRIPT_TOKEN_IMPORT)) {
+        mtpscript_declaration_t *decl = mtpscript_declaration_new(MTPSCRIPT_DECL_IMPORT);
+
+        // Parse module name
+        if (!check_token(parser, MTPSCRIPT_TOKEN_IDENTIFIER)) {
+            // Error: expected module name
+            return NULL;
+        }
+        mtpscript_token_t *module_token = advance_token(parser);
+        decl->data.import.module_name = mtpscript_string_from_cstr(mtpscript_string_cstr(module_token->lexeme));
+
+        // Parse 'from'
+        if (!match_token(parser, MTPSCRIPT_TOKEN_FROM)) {
+            // Error: expected 'from'
+            return NULL;
+        }
+
+        // Parse git URL with hash (string literal containing URL#hash)
+        if (!check_token(parser, MTPSCRIPT_TOKEN_STRING)) {
+            // Error: expected git URL
+            return NULL;
+        }
+        mtpscript_token_t *url_token = advance_token(parser);
+        const char *url_with_hash = mtpscript_string_cstr(url_token->lexeme);
+        const char *hash_pos = strrchr(url_with_hash, '#');
+        if (!hash_pos) {
+            // Error: expected #hash in URL
+            return NULL;
+        }
+
+        // Split URL and hash
+        size_t url_len = hash_pos - url_with_hash;
+        char *url_only = MTPSCRIPT_MALLOC(url_len + 1);
+        memcpy(url_only, url_with_hash, url_len);
+        url_only[url_len] = '\0';
+
+        decl->data.import.git_url = mtpscript_string_from_cstr(url_only);
+        decl->data.import.git_hash = mtpscript_string_from_cstr(hash_pos + 1);
+        MTPSCRIPT_FREE(url_only);
+
+        // Optional: parse 'as' tag
+        decl->data.import.tag = NULL;
+        if (match_token(parser, MTPSCRIPT_TOKEN_AS)) {
+            mtpscript_token_t *tag_token = advance_token(parser);
+            if (tag_token->type != MTPSCRIPT_TOKEN_STRING) {
+                // Error: expected tag string
+                return NULL;
+            }
+            decl->data.import.tag = mtpscript_string_from_cstr(mtpscript_string_cstr(tag_token->lexeme));
+        }
+
+        // Parse import list
+        decl->data.import.imports = mtpscript_vector_new();
+        if (match_token(parser, MTPSCRIPT_TOKEN_LBRACE)) {
+            while (!check_token(parser, MTPSCRIPT_TOKEN_RBRACE) && !check_token(parser, MTPSCRIPT_TOKEN_EOF)) {
+                if (!check_token(parser, MTPSCRIPT_TOKEN_IDENTIFIER)) {
+                    // Error: expected identifier
+                    return NULL;
+                }
+                mtpscript_token_t *import_token = advance_token(parser);
+                mtpscript_vector_push(decl->data.import.imports,
+                                    mtpscript_string_from_cstr(mtpscript_string_cstr(import_token->lexeme)));
+                if (!match_token(parser, MTPSCRIPT_TOKEN_COMMA)) break;
+            }
+            if (!match_token(parser, MTPSCRIPT_TOKEN_RBRACE)) {
+                // Error: expected closing brace
+                return NULL;
+            }
+        }
+
+        return decl;
+    } else if (0 && match_token(parser, MTPSCRIPT_TOKEN_API)) { // API parsing disabled - needs more work
         mtpscript_declaration_t *decl = mtpscript_declaration_new(MTPSCRIPT_DECL_API);
 
         // Parse HTTP method - should be GET, POST, etc.

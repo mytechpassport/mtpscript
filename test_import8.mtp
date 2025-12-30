@@ -1,0 +1,3 @@
+import MyModule from "git://test.com#abc123" { func1, func2 }
+
+func main(): Int { return 42 }

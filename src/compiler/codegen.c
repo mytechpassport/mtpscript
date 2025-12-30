@@ -116,7 +116,31 @@ static void codegen_statement(mtpscript_statement_t *stmt, mtpscript_string_t *o
 }
 
 static void codegen_declaration(mtpscript_declaration_t *decl, mtpscript_string_t *out) {
-    if (decl->kind == MTPSCRIPT_DECL_API) {
+    if (decl->kind == MTPSCRIPT_DECL_IMPORT) {
+        // Generate import statement for vendored module
+        mtpscript_string_append_cstr(out, "// Import ");
+        mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.import.module_name));
+        mtpscript_string_append_cstr(out, " from ");
+        mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.import.git_url));
+        mtpscript_string_append_cstr(out, "#");
+        mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.import.git_hash));
+        if (decl->data.import.tag) {
+            mtpscript_string_append_cstr(out, " as ");
+            mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.import.tag));
+        }
+        mtpscript_string_append_cstr(out, "\n");
+
+        // Generate import statements for symbols
+        if (decl->data.import.imports && decl->data.import.imports->size > 0) {
+            mtpscript_string_append_cstr(out, "// Importing: ");
+            for (size_t i = 0; i < decl->data.import.imports->size; i++) {
+                if (i > 0) mtpscript_string_append_cstr(out, ", ");
+                mtpscript_string_append_cstr(out, mtpscript_string_cstr(mtpscript_vector_get(decl->data.import.imports, i)));
+            }
+            mtpscript_string_append_cstr(out, "\n");
+        }
+        mtpscript_string_append_cstr(out, "\n");
+    } else if (decl->kind == MTPSCRIPT_DECL_API) {
         // Generate API route handler
         mtpscript_string_append_cstr(out, "// API ");
         mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.api.method));
