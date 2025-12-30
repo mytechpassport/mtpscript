@@ -85,7 +85,7 @@ all: $(PROGS)
 MTPJS_OBJS=mtpjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto $(MYSQL_LDFLAGS) -lcurl
 
-MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/openapi.c src/compiler/module.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/host/npm_bridge.c src/cli/mtpsc.c
+MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/openapi.c src/compiler/module.c src/compiler/typescript_parser.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/host/npm_bridge.c src/cli/mtpsc.c
 MTPSC_OBJS = $(MTPSC_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o
 
 MTPSC_TEST_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c tests/unit/test.c
@@ -123,7 +123,7 @@ phase1_regression_test$(EXE): $(PHASE1_REGRESSION_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 PHASE2_ACCEPTANCE_TEST_SOURCES = tests/unit/acceptance_test_phase_2.c
-PHASE2_ACCEPTANCE_TEST_OBJS = $(PHASE2_ACCEPTANCE_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/openapi.o src/compiler/module.o src/compiler/mtpscript.o src/cli/mtpsc.o
+PHASE2_ACCEPTANCE_TEST_OBJS = $(PHASE2_ACCEPTANCE_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/openapi.o src/compiler/module.o src/compiler/mtpscript.o src/compiler/typescript_parser.o src/cli/mtpsc.o
 
 tests/unit/acceptance_test_phase_2.o: tests/unit/acceptance_test_phase_2.c
 

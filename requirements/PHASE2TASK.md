@@ -62,20 +62,20 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ### 3.2 Mechanical Transforms (§17)
 - [x] **Type Mapping**: `number` → `Int`, `string` → `String`, `boolean` → `Bool`
 - [x] **Null Handling**: `null | T` → `Option<T>`, `throws` → `Result<T, E>`
-- [ ] **Class Removal**: Convert classes to records and functions
-- [ ] **Loop Conversion**: `for`/`while` → recursive functions
+- [x] **Class Removal**: Convert classes to records and functions (basic implementation with manual intervention flags)
+- [x] **Loop Conversion**: `for`/`while` → recursive functions (basic implementation with manual intervention flags)
 - [x] **Effect Inference**: Detect I/O and annotate with `uses { ... }`
-- [ ] **Import Rewriting**: npm imports → audit manifest entries
-- [ ] **Generics**: `T<U>` → parametric types (limited support)
-- [ ] **Enums**: Convert to union types with content hashing
+- [x] **Import Rewriting**: npm imports → audit manifest entries (basic implementation with manual intervention flags)
+- [x] **Generics**: `T<U>` → parametric types (limited support with compatibility issue flags)
+- [x] **Enums**: Convert to union types with content hashing (basic implementation with manual intervention flags)
 - [x] **Interface Conversion**: Interfaces → structural records
-- [ ] **Method Extraction**: Class methods → top-level functions
+- [x] **Method Extraction**: Class methods → top-level functions (basic implementation with manual intervention flags)
 
 ### 3.3 Migration Reports
 - [x] **Compatibility Analysis**: List unsupported TypeScript features
 - [x] **Manual Intervention Points**: Flag code requiring human review
 - [x] **Effect Suggestions**: Recommend effect declarations based on I/O patterns
-- [ ] **TypeScript AST Parser**: Parse TypeScript files to AST for migration
+- [x] **TypeScript AST Parser**: Parse TypeScript files to AST for migration
 
 ### 3.2 Mechanical Transforms (§17)
 - [ ] **Type Mapping**: `number` → `Int`, `string` → `String`, `boolean` → `Bool`
@@ -104,8 +104,8 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 - [x] `mtpsc list`: List all dependencies with versions and hashes
 
 ### 4.2 Lock File Management
-- [ ] **mtp.lock**: Deterministic lock file with git hashes and signatures
-- [ ] **Integrity Verification**: SHA-256 content hash validation
+- [x] **mtp.lock**: Deterministic lock file with git hashes and signatures
+- [x] **Integrity Verification**: SHA-256 content hash validation
 - [ ] **Signature Verification**: Git tag signature validation per §10
 
 ### 4.3 Vendoring System (§10)
@@ -139,24 +139,24 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 6. Annex Files & Documentation (P1)
 
 ### 6.1 Gas Cost Table (Annex A)
-- [ ] Create `/gas-v5.1.csv` with all opcode and built-in costs
+- [x] Create `/gas-v5.1.csv` with all opcode and built-in costs
   - Format: `opcode,name,cost_beta_units,category`
   - Include all IR opcodes
   - Include all built-in function costs
   - Document tail call 0-cost exception
 
 ### 6.2 OpenAPI Generation Rules (Annex B)
-- [ ] Create `/openapi-rules-v5.1.json` schema
+- [x] Create `/openapi-rules-v5.1.json` schema
   - Deterministic field ordering rules
   - `$ref` folding algorithm
   - Schema deduplication rules
   - Path parameter ordering
 
 ### 6.3 Compliance Documentation (§18)
-- [ ] **SOC 2 Mapping**: Control mapping document
-- [ ] **SOX Compliance**: Financial control attestation guide
-- [ ] **ISO 27001**: Information security controls mapping
-- [ ] **PCI-DSS**: Payment card data handling controls
+- [x] **SOC 2 Mapping**: Control mapping document
+- [x] **SOX Compliance**: Financial control attestation guide
+- [x] **ISO 27001**: Information security controls mapping
+- [x] **PCI-DSS**: Payment card data handling controls
 
 ## 7. Union Exhaustiveness Checking (P1)
 
@@ -186,9 +186,9 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 9. Pipeline Operator Associativity Verification (P1)
 
 ### 9.1 Left-Associative Generation (§25)
-- [ ] **α-Equivalent JS Output**: Ensure `a |> b |> c ≡ (a |> b) |> c` generates identical JS across compilers
-- [ ] **Deterministic Code Generation**: Pipeline lowering produces consistent AST structure
-- [ ] **Test Coverage**: Comprehensive tests for associativity edge cases
+- [x] **α-Equivalent JS Output**: Ensure `a |> b |> c ≡ (a |> b) |> c` generates identical JS across compilers
+- [x] **Deterministic Code Generation**: Pipeline lowering produces consistent AST structure
+- [x] **Test Coverage**: Comprehensive tests for associativity edge cases
 
 ### 9.2 Local Development Server (P2)
 
