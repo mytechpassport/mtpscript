@@ -76,7 +76,7 @@ MTPJS_BUILD_FLAGS=-m32
 endif
 
 PROGS=mtpjs$(EXE) example$(EXE) mtpsc$(EXE)
-TEST_PROGS=dtoa_test libm_test mtpsc_test phase0_regression_test mtpsc_acceptance
+TEST_PROGS=dtoa_test libm_test mtpsc_test phase0_regression_test phase1_regression_test mtpsc_acceptance
 
 all: $(PROGS)
 
@@ -110,6 +110,14 @@ PHASE0_REGRESSION_TEST_OBJS = $(PHASE0_REGRESSION_TEST_SOURCES:.c=.o) mquickjs.o
 tests/unit/phase0_regression_test.o: tests/unit/phase0_regression_test.c mtpjs_stdlib.h
 
 phase0_regression_test$(EXE): $(PHASE0_REGRESSION_TEST_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+PHASE1_REGRESSION_TEST_SOURCES = tests/unit/phase1_regression_test.c
+PHASE1_REGRESSION_TEST_OBJS = $(PHASE1_REGRESSION_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/mtpscript.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/bytecode.o src/compiler/openapi.o src/compiler/module.o src/stdlib/runtime.o src/effects/effects.o src/host/lambda.o src/host/npm_bridge.o src/snapshot/snapshot.o
+
+tests/unit/phase1_regression_test.o: tests/unit/phase1_regression_test.c
+
+phase1_regression_test$(EXE): $(PHASE1_REGRESSION_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 mquickjs.o: mquickjs_atom.h
