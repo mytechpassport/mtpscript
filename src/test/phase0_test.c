@@ -29,7 +29,7 @@ JSValue js_clearTimeout(JSContext *ctx, JSValue *this_val, int argc, JSValue *ar
         return false; \
     }
 
-#define MEM_SIZE (4 * 1024 * 1024) // 4MB for testing
+#define MEM_SIZE (8 * 1024 * 1024) // 8MB for testing
 static uint64_t mem_buf[MEM_SIZE / 8];
 
 /**
@@ -56,7 +56,12 @@ bool test_snapshot_isolation_and_wipe() {
 
 // Helper to get bool from JSValue
 bool get_bool(JSContext *ctx, JSValue v) {
-    printf("get_bool: v=%llx\n", (long long)v);
+    if (JS_IsException(v)) {
+        JSValue exc = JS_GetException(ctx);
+        JSCStringBuf sbuf;
+        printf("get_bool: Exception occurred: %s\n", JS_ToCString(ctx, exc, &sbuf));
+        return false;
+    }
     if (JS_IsBool(v)) {
         return JS_VALUE_GET_SPECIAL_VALUE(v);
     }

@@ -3586,8 +3586,10 @@ static JSValue stdlib_init_class(JSContext *ctx, const JSROMClass *class_def)
             ctx->class_proto[class_id] = proto;
         }
         p = JS_VALUE_TO_PTR(proto);
-        if (!JS_IsNull(class_def->proto_props))
+        if (!JS_IsNull(class_def->proto_props)) {
             p->props = class_def->proto_props;
+            printf("stdlib_init_class: proto_props set for class_id %d\n", class_id);
+        }
 
         if (JS_IsNull(parent_class))
             parent_class = ctx->class_proto[JS_CLASS_CLOSURE];
@@ -4360,6 +4362,7 @@ JSValue JS_ToString(JSContext *ctx, JSValue val)
                 int len = (int)strlen(p->value);
                 int out_len = 0;
 
+                printf("JS_ToString: Decimal %s scale %d\n", p->value, p->scale);
                 if (p->scale == 0) {
                     return JS_NewString(ctx, p->value);
                 } else if (p->scale >= len) {
@@ -4959,6 +4962,8 @@ static BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
     if (op1 == op2)
         return TRUE;
 
+    printf("js_structural_eq: op1=%llx op2=%llx\n", (long long)op1, (long long)op2);
+
     if (JS_IsInt(op1))
         return JS_IsInt(op2) && op1 == op2;
     if (JS_IsBool(op1))
@@ -4994,7 +4999,7 @@ static BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
                 JSValue bfunc2 = obj2->u.closure.func_bytecode;
                 if (bfunc1 != bfunc2)
                     return FALSE;
-                
+
                 /* Compare upvalues */
                 JSFunctionBytecode *b = JS_VALUE_TO_PTR(bfunc1);
                 int ext_vars_len = 0;
@@ -5027,6 +5032,9 @@ static BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
 
             keys1 = js_object_keys(ctx, NULL, 1, &op1_ref.val);
             if (JS_IsException(keys1)) {
+                JSValue exc = JS_GetException(ctx);
+                JSCStringBuf sbuf;
+                printf("js_structural_eq: keys1 exception: %s\n", JS_ToCString(ctx, exc, &sbuf));
                 same = FALSE;
                 goto done;
             }
@@ -14251,6 +14259,8 @@ JSValue js_object_keys(JSContext *ctx, JSValue *this_val,
     int array_len, prop_count, hash_mask, alloc_size, i, j, pos;
     JSGCRef ret_ref;
 
+    printf("js_object_keys: argv[0]=%llx is_object=%d\n", (long long)argv[0], JS_IsObject(ctx, argv[0]));
+
     if (!JS_IsObject(ctx, argv[0]))
         return JS_ThrowTypeErrorNotAnObject(ctx);
     p = JS_VALUE_TO_PTR(argv[0]);
@@ -15878,6 +15888,7 @@ JSValue js_decimal_constructor(JSContext *ctx, JSValue *this_val,
 JSValue js_decimal_toString(JSContext *ctx, JSValue *this_val,
                             int argc, JSValue *argv)
 {
+    printf("js_decimal_toString called\n");
     return JS_ToString(ctx, *this_val);
 }
 
