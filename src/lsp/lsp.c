@@ -110,7 +110,8 @@ mtpscript_vector_t *mtpscript_lsp_get_diagnostics(mtpscript_lsp_server_t *server
         free(diag->message);
         free(diag);
     }
-    mtpscript_vector_clear(server->diagnostics);
+    mtpscript_vector_free(server->diagnostics);
+    server->diagnostics = mtpscript_vector_new();
 
     if (!server->current_program) {
         return server->diagnostics;
