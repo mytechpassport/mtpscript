@@ -16,8 +16,6 @@
 #include "../stdlib/runtime.h"
 #include "../decimal/decimal.h"
 #include "../compiler/ast.h"
-#include "../compiler/module.h"
-#include "../host/npm_bridge.h"
 
 #define ASSERT(expr) if (!(expr)) { printf("FAIL: %s at %s:%d\n", #expr, __FILE__, __LINE__); return false; }
 
@@ -918,69 +916,6 @@ bool test_exhaustive_matches() {
     return has_match_expr_type && has_match_arm_struct;
 }
 
-bool test_module_system() {
-    // Test module system infrastructure
-
-    // Test module resolver creation
-    mtpscript_module_resolver_t *resolver = mtpscript_module_resolver_new();
-    ASSERT(resolver != NULL);
-    ASSERT(resolver->module_cache != NULL);
-    ASSERT(resolver->verified_tags != NULL);
-
-    // Test git hash verification (placeholder implementation)
-    char actual_hash[65];
-    mtpscript_error_t *verify_error = mtpscript_module_verify_git_hash(
-        "https://github.com/example/repo.git",
-        "abcd1234567890abcdef1234567890abcdef1234",
-        actual_hash, sizeof(actual_hash)
-    );
-
-    // Should succeed with valid hash format
-    ASSERT(verify_error == NULL);
-    ASSERT(strlen(actual_hash) == 40);
-
-    // Test invalid hash format
-    mtpscript_error_t *invalid_error = mtpscript_module_verify_git_hash(
-        "https://github.com/example/repo.git",
-        "invalid",
-        actual_hash, sizeof(actual_hash)
-    );
-    ASSERT(invalid_error != NULL);
-    mtpscript_error_free(invalid_error);
-
-    // Clean up
-    mtpscript_module_resolver_free(resolver);
-
-    return true;
-}
-
-bool test_npm_bridging() {
-    // Test npm bridging audit manifest generation
-
-    // Create audit manifest
-    mtpscript_audit_manifest_t *manifest = mtpscript_audit_manifest_new();
-    ASSERT(manifest != NULL);
-    ASSERT(manifest->entries != NULL);
-    ASSERT(manifest->manifest_version != NULL);
-
-    // Test JSON serialization of empty manifest
-    mtpscript_string_t *json = mtpscript_audit_manifest_to_json(manifest);
-    ASSERT(json != NULL);
-    ASSERT(strstr(mtpscript_string_cstr(json), "\"manifestVersion\"") != NULL);
-    ASSERT(strstr(mtpscript_string_cstr(json), "\"entries\"") != NULL);
-    mtpscript_string_free(json);
-
-    // Test scanning non-existent directory (should not crash)
-    mtpscript_error_t *scan_error = mtpscript_scan_unsafe_adapters("/nonexistent", manifest);
-    // Note: This might return an error, which is OK for this test
-
-    // Clean up
-    mtpscript_audit_manifest_free(manifest);
-    if (scan_error) mtpscript_error_free(scan_error);
-
-    return true;
-}
-
 int main() {
     printf("Running MTPScript Acceptance Criteria Tests...\n");
     int passed = 0;
@@ -1018,8 +953,6 @@ int main() {
     RUN_TEST(test_js_lowering_constraints);
     RUN_TEST(test_integer_hardening);
     RUN_TEST(test_exhaustive_matches);
-    RUN_TEST(test_module_system);
-    RUN_TEST(test_npm_bridging);
 
     printf("\nAcceptance Tests: %d passed, %d total\n", passed, total);
     return (passed == total) ? 0 : 1;

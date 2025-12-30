@@ -1134,6 +1134,17 @@ static JSValue js_alloc_int64(JSContext *ctx, int64_t val)
 
 JSValue JS_NewInt64(JSContext *ctx, int64_t val)
 {
+    /* MTPScript Integer Hardening (§12):
+     * Forbid double-path for integers > 2^53-1 to prevent precision loss
+     * JavaScript numbers (IEEE 754 double) can only represent integers
+     * up to 2^53-1 exactly. Beyond this, precision is lost.
+     */
+    if (val > 9007199254740991LL || val < -9007199254740991LL) {
+        /* Integer too large for safe JavaScript number representation */
+        return JS_ThrowError(ctx, JS_CLASS_RANGE_ERROR,
+                           "Integer value %" PRId64 " cannot be safely represented in JavaScript numbers", val);
+    }
+
     if (likely(int64_is_short_int(val))) {
         return JS_NewShortInt(val);
     } else {

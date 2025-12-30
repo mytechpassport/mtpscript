@@ -83,10 +83,10 @@ all: $(PROGS)
 MTPJS_OBJS=mtpjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto
 
-MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/cli/mtpsc.c
+MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/compiler/module.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/cli/mtpsc.c
 MTPSC_OBJS = $(MTPSC_SOURCES:.c=.o)
 
-MTPSC_TEST_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/test/test.c
+MTPSC_TEST_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c tests/unit/test.c
 MTPSC_TEST_OBJS = $(MTPSC_TEST_SOURCES:.c=.o)
 
 mtpjs$(EXE): $(MTPJS_OBJS)
@@ -98,16 +98,16 @@ mtpsc$(EXE): $(MTPSC_OBJS)
 mtpsc_test$(EXE): $(MTPSC_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-MTPSC_ACCEPTANCE_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/test/acceptance_tests.c
+MTPSC_ACCEPTANCE_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c tests/unit/acceptance_tests.c
 MTPSC_ACCEPTANCE_OBJS = $(MTPSC_ACCEPTANCE_SOURCES:.c=.o)
 
 mtpsc_acceptance$(EXE): $(MTPSC_ACCEPTANCE_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-PHASE0_REGRESSION_TEST_SOURCES = src/test/phase0_regression_test.c
+PHASE0_REGRESSION_TEST_SOURCES = tests/unit/phase0_regression_test.c
 PHASE0_REGRESSION_TEST_OBJS = $(PHASE0_REGRESSION_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/mtpscript.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/stdlib/runtime.o
 
-src/test/phase0_regression_test.o: src/test/phase0_regression_test.c mtpjs_stdlib.h
+tests/unit/phase0_regression_test.o: tests/unit/phase0_regression_test.c mtpjs_stdlib.h
 
 phase0_regression_test$(EXE): $(PHASE0_REGRESSION_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
@@ -144,17 +144,17 @@ example_stdlib.h: example_stdlib
 	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
 
 test: mtpjs example mtpsc_test
-	./mtpjs tests/test_closure.js
-	./mtpjs tests/test_language.js
-	./mtpjs tests/test_loop.js
-	./mtpjs tests/test_builtin.js
+	./mtpjs tests/integration/test_closure.js
+	./mtpjs tests/integration/test_language.js
+	./mtpjs tests/integration/test_loop.js
+	./mtpjs tests/integration/test_builtin.js
 # test bytecode generation and loading
-	./mtpjs -o test_builtin.bin tests/test_builtin.js
+	./mtpjs -o test_builtin.bin tests/integration/test_builtin.js
 #	@sha256sum -c test_builtin.sha256
 	./mtpjs -b test_builtin.bin
-	./example tests/test_rect.js
-	./mtpsc_test
-	./phase0_regression_test
+	./example tests/integration/test_rect.js
+	./tests/executables/mtpsc_test
+	./tests/executables/phase0_regression_test
 	./mtpsc_acceptance
 
 microbench: mtpjs

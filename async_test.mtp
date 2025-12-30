@@ -1,0 +1,4 @@
+func asyncTest(): Int uses Async {
+    let x = await someAsyncCall()
+    return x
+}

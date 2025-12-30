@@ -61,6 +61,34 @@ static void codegen_expression(mtpscript_expression_t *expr, mtpscript_string_t 
             codegen_expression(expr->data.await.expression, out);
             mtpscript_string_append_cstr(out, ")");
             break;
+        case MTPSCRIPT_EXPR_MATCH_EXPR:
+            // Generate JavaScript switch-like construct for match
+            mtpscript_string_append_cstr(out, "(function() {\n");
+            mtpscript_string_append_cstr(out, "  const scrutinee = ");
+            codegen_expression(expr->data.match.scrutinee, out);
+            mtpscript_string_append_cstr(out, ";\n");
+
+            for (size_t i = 0; i < expr->data.match.arms->size; i++) {
+                mtpscript_match_arm_t *arm = mtpscript_vector_get(expr->data.match.arms, i);
+                mtpscript_string_append_cstr(out, "  ");
+                if (i == 0) {
+                    mtpscript_string_append_cstr(out, "if");
+                } else {
+                    mtpscript_string_append_cstr(out, "} else if");
+                }
+                mtpscript_string_append_cstr(out, " (scrutinee === ");
+                mtpscript_string_append_cstr(out, mtpscript_string_cstr(arm->pattern));
+                mtpscript_string_append_cstr(out, ") {\n");
+                mtpscript_string_append_cstr(out, "    return ");
+                codegen_expression(arm->body, out);
+                mtpscript_string_append_cstr(out, ";\n");
+            }
+
+            mtpscript_string_append_cstr(out, "  } else {\n");
+            mtpscript_string_append_cstr(out, "    throw new Error('Non-exhaustive match');\n");
+            mtpscript_string_append_cstr(out, "  }\n");
+            mtpscript_string_append_cstr(out, "})()");
+            break;
         default: break;
     }
 }

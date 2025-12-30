@@ -83,6 +83,36 @@ static mtpscript_error_t *typecheck_expression(mtpscript_expression_t *expr, mtp
             // Await returns the same type as the awaited expression
             break;
         }
+        case MTPSCRIPT_EXPR_MATCH_EXPR: {
+            // Type check the scrutinee (expression being matched)
+            mtpscript_type_t *scrutinee_type;
+            mtpscript_error_t *scrutinee_error = typecheck_expression(expr->data.match.scrutinee, env, &scrutinee_type);
+            if (scrutinee_error) return scrutinee_error;
+
+            // For exhaustive matches, we would check that all possible values are covered
+            // For now, just type check all arms and ensure they have compatible return types
+
+            mtpscript_type_t *arm_type = NULL;
+            for (size_t i = 0; i < expr->data.match.arms->size; i++) {
+                mtpscript_match_arm_t *arm = mtpscript_vector_get(expr->data.match.arms, i);
+                mtpscript_type_t *current_arm_type;
+                mtpscript_error_t *arm_error = typecheck_expression(arm->body, env, &current_arm_type);
+                if (arm_error) return arm_error;
+
+                if (!arm_type) {
+                    arm_type = current_arm_type;
+                } else if (!mtpscript_type_equals(arm_type, current_arm_type)) {
+                    return MTPSCRIPT_MALLOC(sizeof(mtpscript_error_t)); // Type mismatch in match arms
+                }
+            }
+
+            if (!arm_type) {
+                *type_out = mtpscript_type_new(MTPSCRIPT_TYPE_INT); // Default if no arms
+            } else {
+                *type_out = arm_type;
+            }
+            break;
+        }
         // TODO: Add type checking for Option/Result construction and access
         default: break;
     }

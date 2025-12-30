@@ -11,12 +11,21 @@
 
 #include "mtpscript.h"
 
+// Forward declarations for module system
+struct mtpscript_module_t;
+
 // Forward declarations
 struct mtpscript_type_t;
 struct mtpscript_expression_t;
 struct mtpscript_statement_t;
 struct mtpscript_declaration_t;
 struct mtpscript_program_t;
+
+// Match arms
+typedef struct {
+    mtpscript_string_t *pattern;  // pattern to match (simplified - just identifiers for now)
+    struct mtpscript_expression_t *body;  // expression to evaluate if pattern matches
+} mtpscript_match_arm_t;
 
 // Types
 typedef enum {
@@ -51,7 +60,8 @@ typedef enum {
     MTPSCRIPT_EXPR_FUNCTION_CALL,
     MTPSCRIPT_EXPR_BLOCK_EXPR,
     MTPSCRIPT_EXPR_PIPE_EXPR,    // pipeline operator
-    MTPSCRIPT_EXPR_AWAIT_EXPR    // await expression
+    MTPSCRIPT_EXPR_AWAIT_EXPR,   // await expression
+    MTPSCRIPT_EXPR_MATCH_EXPR    // match expression
 } mtpscript_expression_kind_t;
 
 typedef struct mtpscript_expression_t {
@@ -84,6 +94,10 @@ typedef struct mtpscript_expression_t {
         struct {
             struct mtpscript_expression_t *expression;
         } await;  // await expression
+        struct {
+            struct mtpscript_expression_t *scrutinee;  // expression being matched
+            mtpscript_vector_t *arms;  // vector of mtpscript_match_arm_t
+        } match;  // match expression
     } data;
 } mtpscript_expression_t;
 
@@ -115,7 +129,8 @@ typedef struct mtpscript_statement_t {
 // Declarations
 typedef enum {
     MTPSCRIPT_DECL_FUNCTION,
-    MTPSCRIPT_DECL_API
+    MTPSCRIPT_DECL_API,
+    MTPSCRIPT_DECL_IMPORT
 } mtpscript_declaration_kind_t;
 
 typedef struct {
@@ -137,12 +152,21 @@ typedef struct {
     mtpscript_function_decl_t *handler;
 } mtpscript_api_decl_t;
 
+typedef struct {
+    mtpscript_string_t *module_name;    // name of the module
+    mtpscript_string_t *git_url;        // git repository URL
+    mtpscript_string_t *git_hash;       // pinned git hash
+    mtpscript_string_t *tag;           // optional signed tag
+    mtpscript_vector_t *imports;       // symbols to import (mtpscript_string_t)
+} mtpscript_import_decl_t;
+
 typedef struct mtpscript_declaration_t {
     mtpscript_declaration_kind_t kind;
     mtpscript_location_t location;
     union {
         mtpscript_function_decl_t function;
         mtpscript_api_decl_t api;
+        mtpscript_import_decl_t import;
     } data;
 } mtpscript_declaration_t;
 
