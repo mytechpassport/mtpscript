@@ -12,3 +12,8 @@
 **/*.msqs.sig.pub.pem.sig
 **/*.msqs.sig.priv.pem.sig
 tests/executables/*
+example
+example_stdlib
+mtpjs
+mtpjs_stdlib
+mtpsc
