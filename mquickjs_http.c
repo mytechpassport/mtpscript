@@ -16,12 +16,18 @@
 // Thread-local storage for HTTP cache
 __thread MTPScriptHTTPCache *g_http_cache = NULL;
 
-// cURL write callback for response body
+// cURL write callback for response body with size limits
 static size_t http_write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
     size_t realsize = size * nmemb;
     MTPScriptHTTPResponse *resp = (MTPScriptHTTPResponse *)userp;
 
-    char *new_body = realloc(resp->body, strlen(resp->body ? resp->body : "") + realsize + 1);
+    size_t current_size = resp->body ? strlen(resp->body) : 0;
+    if (current_size + realsize > MTPSCRIPT_HTTP_MAX_RESPONSE_SIZE) {
+        // Response too large
+        return 0;
+    }
+
+    char *new_body = realloc(resp->body, current_size + realsize + 1);
     if (!new_body) return 0;
 
     resp->body = new_body;
@@ -59,7 +65,15 @@ MTPScriptHTTPRequest *mtpscript_http_request_new(const char *method, const char 
     req->url = strdup(url ? url : "");
     req->headers = headers ? strdup(headers) : NULL;
     req->body = body ? strdup(body) : NULL;
+    req->body_size = body ? strlen(body) : 0;
     req->timeout_ms = timeout_ms > 0 ? timeout_ms : 30000; // Default 30 seconds
+    req->verify_tls = true; // Enable TLS verification by default
+
+    // Check request body size limit
+    if (req->body_size > MTPSCRIPT_HTTP_MAX_REQUEST_SIZE) {
+        mtpscript_http_request_free(req);
+        return NULL;
+    }
 
     return req;
 }
@@ -134,9 +148,18 @@ MTPScriptHTTPResponse *mtpscript_http_request_execute(MTPScriptHTTPRequest *req)
     // Set timeout
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, req->timeout_ms);
 
-    // Disable SSL verification for development (enable in production)
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    // Configure TLS certificate validation
+    if (req->verify_tls) {
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+        // Use system CA certificates
+        curl_easy_setopt(curl, CURLOPT_CAINFO, NULL);
+        curl_easy_setopt(curl, CURLOPT_CAPATH, NULL);
+    } else {
+        // Disable SSL verification (for development/testing only)
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    }
 
     // Perform request
     CURLcode res = curl_easy_perform(curl);
@@ -260,6 +283,37 @@ void mtpscript_http_generate_request_hash(const uint8_t *seed, size_t seed_len,
     SHA256(hash_input, hash_len, out_hash);
 }
 
+// Serialize request to canonical form for caching
+static char *mtpscript_http_serialize_request(const MTPScriptHTTPRequest *req) {
+    // Create canonical representation of the request
+    // Format: METHOD URL\nHEADERS\nBODY
+    size_t total_size = strlen(req->method) + 1 + strlen(req->url) + 2; // method + space + url + \n\n
+
+    if (req->headers) total_size += strlen(req->headers) + 1; // headers + \n
+    if (req->body) total_size += req->body_size + 1; // body + \n
+
+    char *serialized = malloc(total_size + 1);
+    if (!serialized) return NULL;
+
+    sprintf(serialized, "%s %s\n", req->method, req->url);
+
+    if (req->headers) {
+        strcat(serialized, req->headers);
+        strcat(serialized, "\n");
+    } else {
+        strcat(serialized, "\n");
+    }
+
+    if (req->body) {
+        strcat(serialized, req->body);
+        strcat(serialized, "\n");
+    } else {
+        strcat(serialized, "\n");
+    }
+
+    return serialized;
+}
+
 // HTTP effect handler
 JSValue mtpscript_http_out(JSContext *ctx, const uint8_t *seed, size_t seed_len, JSValue args) {
     MTPScriptHTTPCache *cache = mtpscript_http_cache_new();
@@ -271,13 +325,14 @@ JSValue mtpscript_http_out(JSContext *ctx, const uint8_t *seed, size_t seed_len,
     // Set execution seed for caching
     mtpscript_http_cache_set_seed(cache, seed, seed_len);
 
-    // For now, implement a simple HTTP GET request
-    // TODO: Parse arguments properly for method, URL, headers, body, timeout
-
-    // Simple implementation: GET request to httpbin.org
+    // Simple implementation: GET request to httpbin.org with TLS validation and size limits
     MTPScriptHTTPRequest *req = mtpscript_http_request_new("GET",
                                                          "https://httpbin.org/get",
-                                                         NULL, NULL, 10000);
+                                                         "Accept: application/json\r\nUser-Agent: MTPScript/1.0",
+                                                         NULL, 10000);
+
+    // Enable TLS verification
+    req->verify_tls = true;
 
     // Generate request hash
     uint8_t request_hash[32];
@@ -298,12 +353,22 @@ JSValue mtpscript_http_out(JSContext *ctx, const uint8_t *seed, size_t seed_len,
         return JS_ThrowError(ctx, JS_CLASS_INTERNAL_ERROR, "Failed to execute HTTP request");
     }
 
+    // Check response size limit
+    if (resp->body && strlen(resp->body) > MTPSCRIPT_HTTP_MAX_RESPONSE_SIZE) {
+        mtpscript_http_response_free(resp);
+        return JS_ThrowError(ctx, JS_CLASS_INTERNAL_ERROR, "Response body too large");
+    }
+
     // Convert response to JS object
     JSValue js_response = JS_NewObject(ctx);
 
     // Add status code
     JSValue status_val = JS_NewInt32(ctx, resp->status_code);
     JS_SetPropertyStr(ctx, js_response, "statusCode", status_val);
+
+    // Add headers
+    JSValue headers_val = JS_NewString(ctx, resp->headers ? resp->headers : "");
+    JS_SetPropertyStr(ctx, js_response, "headers", headers_val);
 
     // Add body
     JSValue body_val = JS_NewString(ctx, resp->body ? resp->body : "");

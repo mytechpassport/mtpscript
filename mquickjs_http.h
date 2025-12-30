@@ -17,8 +17,14 @@ typedef struct {
     char *url;          // Request URL
     char *headers;      // JSON string of headers
     char *body;         // Request body (optional)
+    size_t body_size;   // Size of request body
     long timeout_ms;    // Request timeout in milliseconds
+    bool verify_tls;    // Whether to verify TLS certificates
 } MTPScriptHTTPRequest;
+
+// HTTP size limits
+#define MTPSCRIPT_HTTP_MAX_REQUEST_SIZE  (10 * 1024 * 1024)  // 10MB
+#define MTPSCRIPT_HTTP_MAX_RESPONSE_SIZE (50 * 1024 * 1024)  // 50MB
 
 // HTTP response structure
 typedef struct {

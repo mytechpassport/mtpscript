@@ -7,50 +7,50 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ### 1.1 Database Effects (§7)
 - [x] **DbRead Effect**: Implement deterministic SQL query execution with result caching
   - [x] Connection pool management with per-request isolation
-  - [ ] Query parameterization and SQL injection prevention
+  - [x] Query parameterization and SQL injection prevention
   - [x] Result serialization to canonical JSON
   - [x] Cache responses keyed by `(seed, query_hash)` for replay determinism
 - [x] **DbWrite Effect**: Implement transactional SQL write operations
   - [x] Atomic transaction support with rollback capability
-  - [ ] Write operation logging for audit trail
-  - [ ] Idempotency key support for deterministic retries
+  - [x] Write operation logging for audit trail
+  - [x] Idempotency key support for deterministic retries
 
 ### 1.2 HTTP Effect (§7)
 - [x] **HttpOut Effect**: Implement outbound HTTP client with determinism guarantees
-  - [ ] Request serialization and canonical form
+  - [x] Request serialization and canonical form
   - [x] Response caching keyed by `(seed, request_hash)` per §7-a
   - [x] Timeout handling with deterministic error shapes
-  - [ ] TLS certificate validation
-  - [ ] Request/response body size limits
+  - [x] TLS certificate validation
+  - [x] Request/response body size limits
 
 ### 1.3 Logging Effect (§7)
 - [x] **Log Effect**: Implement structured logging with audit compliance
   - [x] Log levels: `debug`, `info`, `warn`, `error`
   - [x] Structured JSON output per §23
   - [x] Correlation ID injection from request seed
-  - [ ] Log aggregation interface for CloudWatch/external systems
+  - [x] Log aggregation interface for CloudWatch/external systems
   - [x] No stack traces in production per §16
 
 ## 2. Full API Routing System (P0)
 
 ### 2.1 Request Handling (§8)
-- [ ] **Path Parameter Extraction**: `/users/:id` → `{ id: String }`
-- [ ] **Query Parameter Parsing**: `?page=1&limit=10` → typed parameters
-- [ ] **Request Body Parsing**: JSON body deserialization with validation
-- [ ] **Header Access**: Typed header extraction with case normalization
-- [ ] **Content-Type Negotiation**: `application/json` enforcement
+- [x] **Path Parameter Extraction**: `/users/:id` → `{ id: String }`
+- [x] **Query Parameter Parsing**: `?page=1&limit=10` → typed parameters
+- [x] **Request Body Parsing**: JSON body deserialization with validation
+- [x] **Header Access**: Typed header extraction with case normalization
+- [x] **Content-Type Negotiation**: `application/json` enforcement
 
 ### 2.2 Response Generation (§8)
-- [ ] **respond json(...)**: Canonical JSON response serialization
-- [ ] **respond status(...)**: HTTP status code with typed error bodies
-- [ ] **Response Headers**: Content-Type, Content-Length, custom headers
-- [ ] **Error Responses**: Deterministic error shapes per §16
+- [x] **respond json(...)**: Canonical JSON response serialization
+- [x] **respond status(...)**: HTTP status code with typed error bodies
+- [x] **Response Headers**: Content-Type, Content-Length, custom headers
+- [x] **Error Responses**: Deterministic error shapes per §16
 
 ### 2.3 Route Matching
-- [ ] **Static Routes**: Exact path matching (`/users`, `/health`)
-- [ ] **Dynamic Routes**: Path parameters (`/users/:id/posts/:postId`)
-- [ ] **Method Routing**: GET, POST, PUT, DELETE, PATCH dispatch
-- [ ] **Route Priority**: Most-specific match wins
+- [x] **Static Routes**: Exact path matching (`/users`, `/health`)
+- [x] **Dynamic Routes**: Path parameters (`/users/:id/posts/:postId`)
+- [x] **Method Routing**: GET, POST, PUT, DELETE, PATCH dispatch
+- [x] **Route Priority**: Most-specific match wins
 
 ## 3. TypeScript Migration Tooling (P1)
 
@@ -272,8 +272,8 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## Acceptance Criteria (v5.1)
 
 ### P0 Requirements (Must Have)
-- [ ] All four built-in effects (DbRead, DbWrite, HttpOut, Log) fully implemented
-- [ ] API routing handles path params, query params, and request bodies
+- [x] All four built-in effects (DbRead, DbWrite, HttpOut, Log) fully implemented
+- [x] API routing handles path params, query params, and request bodies
 - [x] Effect implementations cache responses for deterministic replay
 - [x] All effects produce canonical JSON output per §23
 

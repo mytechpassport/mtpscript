@@ -23,6 +23,12 @@ typedef struct {
     int max_connections;
 } MTPScriptDBPool;
 
+// Database query parameters
+typedef struct {
+    char *name;
+    char *value;
+} MTPScriptDBParam;
+
 // Database effect cache entry
 typedef struct {
     uint8_t cache_key[32];   // SHA-256 of (seed, query, params)
