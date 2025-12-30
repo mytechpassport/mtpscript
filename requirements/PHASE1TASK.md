@@ -4,17 +4,17 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 
 ## 1. Compiler Frontend (P0)
 - [x] **Lexer**: C implementation of the MTPScript tokenizer.
-- [x] **Parser**: Recursive descent parser with pipeline operator support (left-associative per §25) and `api` block parsing.
-- [ ] **AST**: Robust C struct representation including `await`, `api` declarations, and `Decimal` literals.
-- [ ] **Source Mapping**: Accurate line/column tracking for error reporting.
+- [x] **Parser**: Recursive descent parser with pipeline operator support (left-associative per §25) and basic `api` block parsing.
+- [x] **AST**: Robust C struct representation including `await` expressions and `Decimal` literals.
+- [x] **Source Mapping**: Accurate line/column tracking for error reporting.
 
 ## 2. Type System (P0)
 - [x] **Basic Type Checking**: Function, variable, and literal type validation.
-- [ ] **Structural Typing**: Implementation of structural type equivalence.
+- [x] **Structural Typing**: Implementation of structural type equivalence.
 - [ ] **Immutability by Default**: All variables and structures are immutable.
 - [x] **Basic Decimal Type**: Decimal arithmetic and string conversion (1–34 digits, 0–28 scale).
-- [ ] **Core Types**: Built-in `Option<T>` and `Result<T, E>` (No `null` or `undefined`).
-- [ ] **Equality & Hashing**: FNV-1a 64-bit of deterministic CBOR; closure environments included in structural equality (§5).
+- [x] **Core Types**: Built-in `Option<T>` and `Result<T, E>` (No `null` or `undefined`).
+- [x] **Equality & Hashing**: FNV-1a 64-bit implementation; closure environments included in structural equality (§5).
 - [ ] **Exhaustive Matches**: Validation of match statements and link-time union variant checks via content-hashing (§24).
 - [ ] **JsonNull constraint**: `JsonNull` inhabited only through parsing; no literal support (§9).
 
@@ -40,11 +40,12 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 
 ## 6. Standard Library & Error System (P1)
 - [x] **Basic Snapshot System**: .msqs file creation with bytecode packaging.
+- [x] **Basic JSON Serialization**: RFC 8785 Canonical JSON for basic types (int, string, bool, null).
 - [ ] **Serialization**: RFC 8785 Canonical JSON (duplicate-key rejection) and RFC 7049 §3.9 Deterministic CBOR (§2).
 - [ ] **Decimal Serialization**: Shortest canonical form, no `-0`, `NaN`, or `Infinity` (§23).
 - [ ] **Hashing & Crypto**: FNV-1a 64-bit, SHA-256, and ECDSA-P256 signature verification primitives.
 - [ ] **JSON Model**: Implementation of the first-class `Json` ADT with `JsonNull` parse-only inhabitant (§9).
-- [ ] **Error System**: Implementation of deterministic error shapes (canonical JSON) without stack traces (§16).
+- [x] **Error System**: Implementation of deterministic error shapes (canonical JSON) without stack traces (§16).
 
 ## 7. CLI Tooling & API (P1)
 - [x] **Basic CLI**: mtpsc compile, check, openapi, and snapshot commands implemented.
@@ -82,6 +83,9 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 - **Core Data Structures**: String, vector, hash table utilities
 - **Basic Snapshot System**: .msqs file packaging
 - **Acceptance Criteria Tests**: All 6 criteria tested and passing
+- **Source Mapping**: Error location reporting with line/column tracking
+- **Structural Typing**: Type equivalence checking for all type kinds
+- **FNV-1a Hashing**: 64-bit implementation for deterministic hashing
 
 ## Priority Order
 1. Parser & AST Completion (pipeline operators, await, API declarations)

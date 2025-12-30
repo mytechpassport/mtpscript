@@ -33,6 +33,10 @@ typedef struct {
 
 void mtpscript_error_free(mtpscript_error_t *error);
 
+// Source mapping utilities
+struct mtpscript_string_t *mtpscript_format_error_with_location(mtpscript_error_t *error);
+struct mtpscript_string_t *mtpscript_location_to_string(mtpscript_location_t location);
+
 // Dynamic string
 typedef struct mtpscript_string_t {
     char *data;

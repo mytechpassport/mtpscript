@@ -28,6 +28,7 @@ typedef enum {
     MTPSCRIPT_TOKEN_IF,
     MTPSCRIPT_TOKEN_ELSE,
     MTPSCRIPT_TOKEN_MATCH,
+    MTPSCRIPT_TOKEN_AWAIT,
 
     // Punctuation
     MTPSCRIPT_TOKEN_LPAREN,
@@ -45,6 +46,8 @@ typedef enum {
     MTPSCRIPT_TOKEN_STAR,
     MTPSCRIPT_TOKEN_SLASH,
     MTPSCRIPT_TOKEN_PIPE,  // |> pipeline operator
+    MTPSCRIPT_TOKEN_LANGLE,  // <
+    MTPSCRIPT_TOKEN_RANGLE,  // >
 
     // HTTP Methods (for API decl)
     MTPSCRIPT_TOKEN_GET,

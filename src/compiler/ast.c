@@ -46,6 +46,38 @@ mtpscript_program_t *mtpscript_program_new(void) {
     return program;
 }
 
+bool mtpscript_type_equals(mtpscript_type_t *a, mtpscript_type_t *b) {
+    if (!a || !b) return false;
+    if (a->kind != b->kind) return false;
+
+    switch (a->kind) {
+        case MTPSCRIPT_TYPE_INT:
+        case MTPSCRIPT_TYPE_STRING:
+        case MTPSCRIPT_TYPE_BOOL:
+        case MTPSCRIPT_TYPE_DECIMAL:
+            return true; // Primitive types are equal if kinds match
+
+        case MTPSCRIPT_TYPE_OPTION:
+        case MTPSCRIPT_TYPE_LIST:
+            return a->inner && b->inner && mtpscript_type_equals(a->inner, b->inner);
+
+        case MTPSCRIPT_TYPE_RESULT:
+            return a->inner && b->inner && mtpscript_type_equals(a->inner, b->inner) &&
+                   a->error && b->error && mtpscript_type_equals(a->error, b->error);
+
+        case MTPSCRIPT_TYPE_MAP:
+            return a->key && b->key && mtpscript_type_equals(a->key, b->key) &&
+                   a->value && b->value && mtpscript_type_equals(a->value, b->value);
+
+        case MTPSCRIPT_TYPE_CUSTOM:
+            return a->name && b->name &&
+                   strcmp(mtpscript_string_cstr(a->name), mtpscript_string_cstr(b->name)) == 0;
+
+        default:
+            return false;
+    }
+}
+
 void mtpscript_type_free(mtpscript_type_t *type) {
     if (type) {
         if (type->name) mtpscript_string_free(type->name);

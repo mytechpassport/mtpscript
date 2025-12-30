@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <time.h>
+#include "../stdlib/runtime.h"
+#include "../compiler/ast.h"
 
 #define ASSERT(expr) if (!(expr)) { printf("FAIL: %s at %s:%d\n", #expr, __FILE__, __LINE__); return false; }
 
@@ -132,6 +134,167 @@ bool test_bit_identical_response_output() {
     return true;
 }
 
+bool test_error_system() {
+    // Test deterministic error shapes (canonical JSON without stack traces)
+    mtpscript_error_response_t *error = mtpscript_error_response_new("TestError", "This is a test error");
+    mtpscript_string_t *json = mtpscript_error_response_to_json(error);
+
+    // Should produce deterministic JSON
+    const char *expected = "{\"error\":\"TestError\",\"message\":\"This is a test error\"}";
+    ASSERT(strcmp(mtpscript_string_cstr(json), expected) == 0);
+
+    mtpscript_string_free(json);
+    mtpscript_error_response_free(error);
+
+    // Test gas exhausted error
+    mtpscript_error_response_t *gas_error = mtpscript_gas_exhausted_error(1000000, 950000);
+    mtpscript_string_t *gas_json = mtpscript_error_response_to_json(gas_error);
+
+    // Should contain gas limit and used
+    const char *gas_json_str = mtpscript_string_cstr(gas_json);
+    ASSERT(strstr(gas_json_str, "\"error\":\"GasExhausted\"") != NULL);
+    ASSERT(strstr(gas_json_str, "\"message\":\"Computation gas limit exceeded\"") != NULL);
+
+    mtpscript_string_free(gas_json);
+    mtpscript_error_response_free(gas_error);
+
+    return true;
+}
+
+bool test_json_serialization() {
+    // Test basic JSON serialization (RFC 8785 canonical)
+    mtpscript_string_t *int_json = mtpscript_json_serialize_int(42);
+    ASSERT(strcmp(mtpscript_string_cstr(int_json), "42") == 0);
+    mtpscript_string_free(int_json);
+
+    mtpscript_string_t *str_json = mtpscript_json_serialize_string("hello");
+    ASSERT(strcmp(mtpscript_string_cstr(str_json), "\"hello\"") == 0);
+    mtpscript_string_free(str_json);
+
+    mtpscript_string_t *bool_json = mtpscript_json_serialize_bool(true);
+    ASSERT(strcmp(mtpscript_string_cstr(bool_json), "true") == 0);
+    mtpscript_string_free(bool_json);
+
+    mtpscript_string_t *null_json = mtpscript_json_serialize_null();
+    ASSERT(strcmp(mtpscript_string_cstr(null_json), "null") == 0);
+    mtpscript_string_free(null_json);
+
+    return true;
+}
+
+bool test_source_mapping() {
+    // Test source mapping and error location reporting
+    mtpscript_location_t loc = {42, 10, "test.mtp"};
+    mtpscript_error_t error;
+    error.message = mtpscript_string_from_cstr("Test error message");
+    error.location = loc;
+
+    mtpscript_string_t *formatted = mtpscript_format_error_with_location(&error);
+    const char *formatted_str = mtpscript_string_cstr(formatted);
+
+    // Should contain file:line:column format
+    ASSERT(strstr(formatted_str, "test.mtp:42:10") != NULL);
+    ASSERT(strstr(formatted_str, "Test error message") != NULL);
+
+    mtpscript_string_free(formatted);
+    mtpscript_string_free(error.message);
+
+    // Test location string formatting
+    mtpscript_string_t *loc_str = mtpscript_location_to_string(loc);
+    ASSERT(strcmp(mtpscript_string_cstr(loc_str), "test.mtp:42:10") == 0);
+    mtpscript_string_free(loc_str);
+
+    return true;
+}
+
+bool test_structural_typing() {
+    // Test structural type equivalence checking
+
+    // Test primitive types
+    mtpscript_type_t *int1 = mtpscript_type_new(MTPSCRIPT_TYPE_INT);
+    mtpscript_type_t *int2 = mtpscript_type_new(MTPSCRIPT_TYPE_INT);
+    ASSERT(mtpscript_type_equals(int1, int2));
+
+    // Test different primitive types
+    mtpscript_type_t *str = mtpscript_type_new(MTPSCRIPT_TYPE_STRING);
+    ASSERT(!mtpscript_type_equals(int1, str));
+
+    // Test Option types
+    mtpscript_type_t *opt_int1 = mtpscript_type_new(MTPSCRIPT_TYPE_OPTION);
+    opt_int1->inner = mtpscript_type_new(MTPSCRIPT_TYPE_INT);
+
+    mtpscript_type_t *opt_int2 = mtpscript_type_new(MTPSCRIPT_TYPE_OPTION);
+    opt_int2->inner = mtpscript_type_new(MTPSCRIPT_TYPE_INT);
+
+    ASSERT(mtpscript_type_equals(opt_int1, opt_int2));
+
+    // Test different Option types
+    mtpscript_type_t *opt_str = mtpscript_type_new(MTPSCRIPT_TYPE_OPTION);
+    opt_str->inner = mtpscript_type_new(MTPSCRIPT_TYPE_STRING);
+
+    ASSERT(!mtpscript_type_equals(opt_int1, opt_str));
+
+    // Test custom types
+    mtpscript_type_t *custom1 = mtpscript_type_new(MTPSCRIPT_TYPE_CUSTOM);
+    custom1->name = mtpscript_string_from_cstr("User");
+
+    mtpscript_type_t *custom2 = mtpscript_type_new(MTPSCRIPT_TYPE_CUSTOM);
+    custom2->name = mtpscript_string_from_cstr("User");
+
+    ASSERT(mtpscript_type_equals(custom1, custom2));
+
+    mtpscript_type_t *custom3 = mtpscript_type_new(MTPSCRIPT_TYPE_CUSTOM);
+    custom3->name = mtpscript_string_from_cstr("Admin");
+
+    ASSERT(!mtpscript_type_equals(custom1, custom3));
+
+    // Cleanup
+    mtpscript_type_free(int1);
+    mtpscript_type_free(int2);
+    mtpscript_type_free(str);
+    mtpscript_type_free(opt_int1);
+    mtpscript_type_free(opt_int2);
+    mtpscript_type_free(opt_str);
+    mtpscript_type_free(custom1);
+    mtpscript_type_free(custom2);
+    mtpscript_type_free(custom3);
+
+    return true;
+}
+
+bool test_fnv1a_hashing() {
+    // Test FNV-1a 64-bit hashing implementation
+
+    // Test empty string
+    uint64_t empty_hash = mtpscript_fnv1a_64_string("");
+    ASSERT(empty_hash == 0xcbf29ce484222325ULL); // FNV-1a offset
+
+    // Test simple string
+    uint64_t hello_hash = mtpscript_fnv1a_64_string("hello");
+    ASSERT(hello_hash != 0); // Should be non-zero
+
+    // Test same string produces same hash
+    uint64_t hello_hash2 = mtpscript_fnv1a_64_string("hello");
+    ASSERT(hello_hash == hello_hash2);
+
+    // Test different strings produce different hashes
+    uint64_t world_hash = mtpscript_fnv1a_64_string("world");
+    ASSERT(hello_hash != world_hash);
+
+    // Test raw data hashing
+    const char *data = "test";
+    uint64_t data_hash1 = mtpscript_fnv1a_64(data, 4);
+    uint64_t data_hash2 = mtpscript_fnv1a_64_string("test");
+    ASSERT(data_hash1 == data_hash2);
+
+    // Test that small changes produce different hashes (avalanche effect)
+    uint64_t hash1 = mtpscript_fnv1a_64_string("test1");
+    uint64_t hash2 = mtpscript_fnv1a_64_string("test2");
+    ASSERT(hash1 != hash2);
+
+    return true;
+}
+
 int main() {
     printf("Running MTPScript Acceptance Criteria Tests...\n");
     int passed = 0;
@@ -145,6 +308,11 @@ int main() {
     RUN_TEST(test_bit_identical_binary_output);
     RUN_TEST(test_bit_identical_response_output);
     RUN_TEST(test_vm_clone_time_benchmark);
+    RUN_TEST(test_error_system);
+    RUN_TEST(test_json_serialization);
+    RUN_TEST(test_source_mapping);
+    RUN_TEST(test_structural_typing);
+    RUN_TEST(test_fnv1a_hashing);
 
     printf("\nAcceptance Tests: %d passed, %d total\n", passed, total);
     return (passed == total) ? 0 : 1;

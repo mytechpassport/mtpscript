@@ -1,0 +1,1 @@
+func test(y: Result<String, Int>): Int { return 42 }

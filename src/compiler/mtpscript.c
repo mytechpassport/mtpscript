@@ -8,6 +8,7 @@
 
 #include "mtpscript.h"
 #include <string.h>
+#include <stdio.h>
 
 void mtpscript_error_free(mtpscript_error_t *error) {
     if (error) {
@@ -129,4 +130,31 @@ void *mtpscript_hash_get(mtpscript_hash_t *hash, const char *key) {
         }
     }
     return NULL;
+}
+
+// Source mapping utilities
+mtpscript_string_t *mtpscript_location_to_string(mtpscript_location_t location) {
+    mtpscript_string_t *str = mtpscript_string_new();
+    mtpscript_string_append_cstr(str, location.file ? location.file : "<unknown>");
+    mtpscript_string_append_cstr(str, ":");
+    char buf[32];
+    sprintf(buf, "%d", location.line);
+    mtpscript_string_append_cstr(str, buf);
+    mtpscript_string_append_cstr(str, ":");
+    sprintf(buf, "%d", location.column);
+    mtpscript_string_append_cstr(str, buf);
+    return str;
+}
+
+mtpscript_string_t *mtpscript_format_error_with_location(mtpscript_error_t *error) {
+    mtpscript_string_t *str = mtpscript_string_new();
+    mtpscript_string_t *loc_str = mtpscript_location_to_string(error->location);
+    mtpscript_string_append_cstr(str, "Error at ");
+    mtpscript_string_append(str, mtpscript_string_cstr(loc_str), strlen(mtpscript_string_cstr(loc_str)));
+    mtpscript_string_append_cstr(str, ": ");
+    if (error->message) {
+        mtpscript_string_append(str, mtpscript_string_cstr(error->message), strlen(mtpscript_string_cstr(error->message)));
+    }
+    mtpscript_string_free(loc_str);
+    return str;
 }

@@ -24,6 +24,30 @@ typedef struct {
     void *error;
 } mtpscript_result_t;
 
+// Error system for deterministic error shapes
+typedef struct {
+    mtpscript_string_t *error_type;
+    mtpscript_string_t *message;
+    mtpscript_hash_t *details; // Additional error details
+} mtpscript_error_response_t;
+
+mtpscript_error_response_t *mtpscript_error_response_new(const char *error_type, const char *message);
+void mtpscript_error_response_free(mtpscript_error_response_t *error);
+mtpscript_string_t *mtpscript_error_response_to_json(mtpscript_error_response_t *error);
+
+// Gas exhaustion error as specified in §79
+mtpscript_error_response_t *mtpscript_gas_exhausted_error(uint64_t gas_limit, uint64_t gas_used);
+
+// Basic JSON serialization (RFC 8785 canonical)
+mtpscript_string_t *mtpscript_json_serialize_int(int64_t value);
+mtpscript_string_t *mtpscript_json_serialize_string(const char *value);
+mtpscript_string_t *mtpscript_json_serialize_bool(bool value);
+mtpscript_string_t *mtpscript_json_serialize_null(void);
+
+// FNV-1a 64-bit hashing (for structural equality and maps)
+uint64_t mtpscript_fnv1a_64(const void *data, size_t length);
+uint64_t mtpscript_fnv1a_64_string(const char *str);
+
 // Initialize the standard library in a JS context
 mtpscript_error_t *mtpscript_stdlib_init(void *js_context);
 

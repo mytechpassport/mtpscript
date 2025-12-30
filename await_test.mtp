@@ -1,0 +1,1 @@
+func test(): Int { return await 42 }

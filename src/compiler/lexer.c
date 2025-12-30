@@ -94,6 +94,7 @@ mtpscript_error_t *mtpscript_lexer_tokenize(mtpscript_lexer_t *lexer, mtpscript_
             else if (strcmp(lexeme, "true") == 0) type = MTPSCRIPT_TOKEN_BOOL;
             else if (strcmp(lexeme, "false") == 0) type = MTPSCRIPT_TOKEN_BOOL;
             else if (strcmp(lexeme, "GET") == 0) type = MTPSCRIPT_TOKEN_GET;
+            else if (strcmp(lexeme, "await") == 0) type = MTPSCRIPT_TOKEN_AWAIT;
             else if (strcmp(lexeme, "POST") == 0) type = MTPSCRIPT_TOKEN_POST;
 
             mtpscript_vector_push(tokens, create_token(lexer, type, lexeme));
@@ -138,6 +139,8 @@ mtpscript_error_t *mtpscript_lexer_tokenize(mtpscript_lexer_t *lexer, mtpscript_
                 case '=': type = MTPSCRIPT_TOKEN_EQUALS; break;
                 case ':': type = MTPSCRIPT_TOKEN_COLON; break;
                 case ',': type = MTPSCRIPT_TOKEN_COMMA; break;
+                case '<': type = MTPSCRIPT_TOKEN_LANGLE; break;
+                case '>': type = MTPSCRIPT_TOKEN_RANGLE; break;
                 default:
                     // Handle error
                     return NULL;

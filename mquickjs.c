@@ -4964,6 +4964,62 @@ static BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
 
     printf("js_structural_eq: op1=%llx op2=%llx\n", (long long)op1, (long long)op2);
 
+    /* Numeric values (covers short floats) */
+    if (JS_IsNumber(ctx, op1) && JS_IsNumber(ctx, op2)) {
+        double d1, d2;
+        /* cannot fail */
+        JS_ToNumber(ctx, &d1, op1);
+        JS_ToNumber(ctx, &d2, op2);
+        return (d1 == d2); /* NaN => false */
+    }
+
+    /* Compare JSByteArray contents (used by function bytecode, etc.) */
+    if (JS_IsPtr(op1) && JS_IsPtr(op2)) {
+        JSMemBlockHeader *h1 = JS_VALUE_TO_PTR(op1);
+        JSMemBlockHeader *h2 = JS_VALUE_TO_PTR(op2);
+        if (h1->mtag == JS_MTAG_INT64 && h2->mtag == JS_MTAG_INT64) {
+            JSInt64 *i1 = (JSInt64 *)h1;
+            JSInt64 *i2 = (JSInt64 *)h2;
+            return i1->u.ival == i2->u.ival;
+        }
+        if (h1->mtag == JS_MTAG_FLOAT64 && h2->mtag == JS_MTAG_FLOAT64) {
+            JSFloat64 *f1 = (JSFloat64 *)h1;
+            JSFloat64 *f2 = (JSFloat64 *)h2;
+            return memcmp(&f1->u.dval, &f2->u.dval, sizeof(double)) == 0;
+        }
+        if (h1->mtag == JS_MTAG_BYTE_ARRAY && h2->mtag == JS_MTAG_BYTE_ARRAY) {
+            JSByteArray *a1 = (JSByteArray *)h1;
+            JSByteArray *a2 = (JSByteArray *)h2;
+            if (a1->size != a2->size)
+                return FALSE;
+            return memcmp(a1->buf, a2->buf, a1->size) == 0;
+        }
+        if (h1->mtag == JS_MTAG_VALUE_ARRAY && h2->mtag == JS_MTAG_VALUE_ARRAY) {
+            JSValueArray *a1 = (JSValueArray *)h1;
+            JSValueArray *a2 = (JSValueArray *)h2;
+            if (a1->size != a2->size)
+                return FALSE;
+            for (int i = 0; i < (int)a1->size; i++) {
+                if (!js_structural_eq(ctx, a1->arr[i], a2->arr[i]))
+                    return FALSE;
+            }
+            return TRUE;
+        }
+        if (h1->mtag == JS_MTAG_FUNCTION_BYTECODE && h2->mtag == JS_MTAG_FUNCTION_BYTECODE) {
+            JSFunctionBytecode *b1 = (JSFunctionBytecode *)h1;
+            JSFunctionBytecode *b2 = (JSFunctionBytecode *)h2;
+            if (b1->arg_count != b2->arg_count ||
+                b1->stack_size != b2->stack_size ||
+                b1->has_column != b2->has_column) {
+                return FALSE;
+            }
+            /* Compare bytecode only (cpool can contain runtime-allocated objects) */
+            if (!js_structural_eq(ctx, b1->byte_code, b2->byte_code))
+                return FALSE;
+            return TRUE;
+        }
+    }
+
     if (JS_IsInt(op1))
         return JS_IsInt(op2) && op1 == op2;
     if (JS_IsBool(op1))
@@ -4997,7 +5053,8 @@ static BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
             if (obj1->class_id == JS_CLASS_CLOSURE) {
                 JSValue bfunc1 = obj1->u.closure.func_bytecode;
                 JSValue bfunc2 = obj2->u.closure.func_bytecode;
-                if (bfunc1 != bfunc2)
+                /* MTPScript: structural equality for functions compares bytecode structure */
+                if (!js_structural_eq(ctx, bfunc1, bfunc2))
                     return FALSE;
 
                 /* Compare upvalues */
@@ -12087,6 +12144,16 @@ static int js_parse_json_value(JSParseState *s, int state, int dummy_param)
                 prop = JS_ToPropertyKey(ctx, prop);
                 if (JS_IsException(prop))
                     js_parse_error_mem(s);
+
+#if MTPSCRIPT_DETERMINISTIC
+                /* Duplicate-key rejection (TECHSPEC v5.1 §9) */
+                {
+                    JSObject *o = JS_VALUE_TO_PTR(*ctx->sp);
+                    if (o->props != JS_NULL && find_own_property(ctx, o, prop)) {
+                        js_parse_error(s, "duplicate key");
+                    }
+                }
+#endif
 
 
                 p = s->source_buf + pos;

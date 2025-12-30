@@ -159,6 +159,9 @@ mtpscript_statement_t *mtpscript_statement_new(mtpscript_statement_kind_t kind);
 mtpscript_declaration_t *mtpscript_declaration_new(mtpscript_declaration_kind_t kind);
 mtpscript_program_t *mtpscript_program_new(void);
 
+// Type operations
+bool mtpscript_type_equals(mtpscript_type_t *a, mtpscript_type_t *b);
+
 // Destructors
 void mtpscript_type_free(mtpscript_type_t *type);
 void mtpscript_expression_free(mtpscript_expression_t *expr);
