@@ -1,1 +1,1 @@
-let x = 42; console.log(x);
+func test(): Int { return 42 }

@@ -691,18 +691,9 @@ bool test_openapi_deterministic_ordering() {
 
     // Clean up
     unlink("openapi_test.mtp");
-    unlink("openapi_output.json");
 
     // Test that the OpenAPI command runs successfully
     return result == 0;
-
-
-    // Clean up
-    unlink("openapi_test.mtp");
-    unlink("openapi_output.json");
-
-    // Test that the OpenAPI generator produces valid output
-    return has_openapi && has_info && has_title && has_paths && has_version && is_json;
 }
 
 bool test_map_constraints() {

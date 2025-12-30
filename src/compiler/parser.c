@@ -226,7 +226,7 @@ static mtpscript_declaration_t *parse_declaration(mtpscript_parser_t *parser) {
         }
 
         return decl;
-    } else if (0 && match_token(parser, MTPSCRIPT_TOKEN_API)) { // API parsing disabled - needs more work
+    } else if (match_token(parser, MTPSCRIPT_TOKEN_API)) {
         mtpscript_declaration_t *decl = mtpscript_declaration_new(MTPSCRIPT_DECL_API);
 
         // Parse HTTP method - should be GET, POST, etc.
@@ -246,14 +246,71 @@ static mtpscript_declaration_t *parse_declaration(mtpscript_parser_t *parser) {
         }
         decl->data.api.path = mtpscript_string_from_cstr(mtpscript_string_cstr(path_token->lexeme));
 
-        // Skip effects and function parsing for now - create minimal API declaration
+        // Parse the function that follows
+        if (!match_token(parser, MTPSCRIPT_TOKEN_FUNC)) {
+            // Error: expected 'func' after API path
+            return NULL;
+        }
+
+        // Parse function name
+        mtpscript_token_t *func_name = advance_token(parser);
+        if (func_name->type != MTPSCRIPT_TOKEN_IDENTIFIER) {
+            return NULL;
+        }
+
+        // Parse parameters
+        if (!match_token(parser, MTPSCRIPT_TOKEN_LPAREN)) {
+            return NULL;
+        }
+        mtpscript_vector_t *params = mtpscript_vector_new();
+        if (!match_token(parser, MTPSCRIPT_TOKEN_RPAREN)) {
+            do {
+                mtpscript_param_t *param = MTPSCRIPT_MALLOC(sizeof(mtpscript_param_t));
+                mtpscript_token_t *param_name = advance_token(parser);
+                param->name = mtpscript_string_from_cstr(mtpscript_string_cstr(param_name->lexeme));
+                if (!match_token(parser, MTPSCRIPT_TOKEN_COLON)) {
+                    return NULL;
+                }
+                param->type = parse_type(parser);
+                mtpscript_vector_push(params, param);
+            } while (match_token(parser, MTPSCRIPT_TOKEN_COMMA));
+            if (!match_token(parser, MTPSCRIPT_TOKEN_RPAREN)) {
+                return NULL;
+            }
+        }
+
+        // Parse return type
+        mtpscript_type_t *return_type = NULL;
+        if (match_token(parser, MTPSCRIPT_TOKEN_COLON)) {
+            return_type = parse_type(parser);
+        }
+
+        // Parse effects (skip for now)
         mtpscript_vector_t *effects = mtpscript_vector_new();
+
+        // Parse function body
+        if (!match_token(parser, MTPSCRIPT_TOKEN_LBRACE)) {
+            return NULL;
+        }
+        mtpscript_vector_t *body = mtpscript_vector_new();
+        while (!check_token(parser, MTPSCRIPT_TOKEN_RBRACE) && !check_token(parser, MTPSCRIPT_TOKEN_EOF)) {
+            mtpscript_statement_t *stmt = parse_statement(parser);
+            if (stmt) {
+                mtpscript_vector_push(body, stmt);
+            }
+        }
+        if (!match_token(parser, MTPSCRIPT_TOKEN_RBRACE)) {
+            return NULL;
+        }
+
+        // Create function declaration
         mtpscript_function_decl_t *func = MTPSCRIPT_MALLOC(sizeof(mtpscript_function_decl_t));
-        func->name = mtpscript_string_from_cstr("handler");
-        func->params = mtpscript_vector_new();
-        func->return_type = NULL;
-        func->body = mtpscript_vector_new();
+        func->name = mtpscript_string_from_cstr(mtpscript_string_cstr(func_name->lexeme));
+        func->params = params;
+        func->return_type = return_type;
+        func->body = body;
         func->effects = effects;
+
         decl->data.api.handler = func;
 
         return decl;

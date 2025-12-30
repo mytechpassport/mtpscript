@@ -1,3 +1,0 @@
-import MyModule from "git://github.com/user/repo.git#abc123def456" { func1 }
-
-func main(): Int { return 42 }
