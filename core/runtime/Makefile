@@ -9,16 +9,6 @@ CONFIG_SMALL=y
 # consider warnings as errors (for development)
 #CONFIG_WERROR=y
 
-# Explicit rules for host object files to ensure they use HOST_CFLAGS
-mtpjs_stdlib.host.o: mtpjs_stdlib.c
-	gcc -Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/Cellar/mariadb/11.7.2/include/mysql -I/usr/local/Cellar/mariadb/11.7.2/include/mysql/.. -Isrc/compiler -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -O2 -c -o $@ $<
-
-mquickjs_build.host.o: mquickjs_build.c
-	gcc -Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/Cellar/mariadb/11.7.2/include/mysql -I/usr/local/Cellar/mariadb/11.7.2/include/mysql/.. -Isrc/compiler -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -O2 -c -o $@ $<
-
-example_stdlib.host.o: example_stdlib.c
-	gcc -Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/Cellar/mariadb/11.7.2/include/mysql -I/usr/local/Cellar/mariadb/11.7.2/include/mysql/.. -Isrc/compiler -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -O2 -c -o $@ $<
-
 ifdef CONFIG_ARM32
 CROSS_PREFIX=arm-linux-gnu-
 endif
@@ -39,8 +29,8 @@ HOST_CC=gcc
 CC=$(CROSS_PREFIX)gcc
 MYSQL_CFLAGS=$(shell mysql_config --include)
 MYSQL_LDFLAGS=$(shell mysql_config --libs)
-CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include $(MYSQL_CFLAGS) -I. -Isrc/compiler -Isrc/decimal -Isrc/snapshot -Isrc/stdlib -Isrc/effects -Isrc/host -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
-HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math $(MYSQL_CFLAGS) -Isrc/compiler -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
+CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include $(MYSQL_CFLAGS) -I. -Isrc/compiler -Isrc/decimal -Isrc/snapshot -Isrc/stdlib -Isrc/effects -Isrc/host -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
+HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math $(MYSQL_CFLAGS) -Isrc/compiler
 ifdef CONFIG_WERROR
 CFLAGS+=-Werror
 HOST_CFLAGS+=-Werror
@@ -51,14 +41,14 @@ endif
 ifdef CONFIG_SMALL
 CFLAGS+=-Os
 else
-CFLAGS+=-O1
+CFLAGS+=-O2
 endif
 #CFLAGS+=-fstack-usage
 ifdef CONFIG_SOFTFLOAT
 CFLAGS+=-msoft-float
 CFLAGS+=-DUSE_SOFTFLOAT
 endif # CONFIG_SOFTFLOAT
-HOST_CFLAGS+=-O3 -DHOST_BUILD
+HOST_CFLAGS+=-O2
 LDFLAGS=-g
 HOST_LDFLAGS=-g
 ifdef CONFIG_GPROF
@@ -92,7 +82,7 @@ TEST_PROGS=dtoa_test libm_test mtpsc_test phase0_regression_test phase1_regressi
 
 all: $(PROGS)
 
-MTPJS_OBJS=mtpjs.o readline_tty.o readline.o core/runtime/mquickjs.o core/crypto/mquickjs_crypto.o core/effects/mquickjs_effects.o core/db/mquickjs_db.o core/http/mquickjs_http.o core/effects/mquickjs_log.o core/stdlib/mquickjs_api.o core/runtime/mquickjs_errors.o core/utils/dtoa.o core/utils/libm.o core/utils/cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
+MTPJS_OBJS=mtpjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto $(MYSQL_LDFLAGS) -lcurl
 
 MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/openapi.c src/compiler/module.c src/compiler/typescript_parser.c src/compiler/migration.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/host/npm_bridge.c src/lsp/lsp.c src/cli/mtpsc.c
@@ -165,13 +155,11 @@ example_stdlib: example_stdlib.host.o mquickjs_build.host.o
 example_stdlib.h: example_stdlib
 	./example_stdlib $(MTPJS_BUILD_FLAGS) > $@
 
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 %.host.o: %.c
-	@echo "HOST_CFLAGS = $(HOST_CFLAGS)"
 	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
-
-# %.o: %.c
-# 	$(CC) $(CFLAGS) -c -o $@ $<
 
 test: mtpjs example mtpsc_test
 	./mtpjs tests/integration/test_closure.js
