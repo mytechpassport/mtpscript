@@ -187,6 +187,34 @@ bool test_decimal_support() {
         ASSERT(strcmp(s2, "15.75") == 0, "Decimal addition in JS failed");
     }
 
+    // Test Decimal comparison
+    const char *script2 = "var a = new Decimal('10.5'); var b = new Decimal('10.50'); a.compare(b)";
+    JSValue res2 = JS_Eval(ctx, script2, strlen(script2), "test.js", EVAL_FLAGS);
+    if (JS_IsException(res2)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *msg = JS_ToCString(ctx, exc, &sbuf);
+        printf("Decimal comparison threw exception: %s\n", msg);
+        ASSERT(false, "Decimal comparison failed");
+    } else {
+        int cmp_result;
+        JS_ToInt32(ctx, &cmp_result, res2);
+        ASSERT(cmp_result == 0, "Decimal comparison with scale normalization failed");
+    }
+
+    // Test Decimal canonical serialization (no trailing zeros)
+    const char *script3 = "new Decimal('10.500').toString()";
+    JSValue res3 = JS_Eval(ctx, script3, strlen(script3), "test.js", EVAL_FLAGS);
+    if (JS_IsException(res3)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *msg = JS_ToCString(ctx, exc, &sbuf);
+        printf("Decimal serialization threw exception: %s\n", msg);
+        ASSERT(false, "Decimal canonical serialization failed");
+    } else {
+        const char *s3 = JS_ToCString(ctx, res3, &sbuf);
+        printf("Decimal canonical serialization result: '%s'\n", s3);
+        ASSERT(strcmp(s3, "10.5") == 0, "Decimal canonical serialization should remove trailing zeros");
+    }
+
     JS_FreeContext(ctx);
     return true;
 }
@@ -250,6 +278,11 @@ bool test_canonical_json() {
     const char *script2 = "JSON.parse('{\"a\":1,\"a\":2}')";
     JSValue res2 = JS_Eval(ctx, script2, strlen(script2), "test.js", EVAL_FLAGS);
     ASSERT(JS_IsException(res2), "JSON.parse should reject duplicate keys");
+
+    // Test structural equality for objects
+    const char *script3 = "({a: 1, b: 2} === {b: 2, a: 1})";
+    JSValue res3 = JS_Eval(ctx, script3, strlen(script3), "test.js", EVAL_FLAGS);
+    ASSERT(get_bool(ctx, res3) == true, "Structural equality for objects failed");
 
     JS_FreeContext(ctx);
     return true;

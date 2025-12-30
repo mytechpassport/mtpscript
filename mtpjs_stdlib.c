@@ -321,6 +321,7 @@ static const JSClassDef js_date_class =
 
 static const JSPropDef js_decimal_proto[] = {
     JS_CFUNC_DEF("toString", 0, js_decimal_toString),
+    JS_CFUNC_DEF("compare", 1, js_decimal_compare),
     JS_PROP_END,
 };
 

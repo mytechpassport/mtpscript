@@ -388,6 +388,12 @@ typedef enum MTPScriptErrorCode {
 JSValue JS_ThrowTypedError(JSContext *ctx, MTPScriptErrorCode code, const char *message);
 JSValue JS_Freeze(JSContext *ctx, JSValue obj);
 
+/* structural equality functions */
+JS_BOOL JS_StructuralEqual(JSContext *ctx, JSValue a, JSValue b);
+
+/* CBOR serialization functions */
+uint64_t JS_CBORSerialize(JSContext *ctx, JSValue val, uint8_t **out_buf, size_t *out_len);
+
 /* debug functions */
 void JS_SetLogFunc(JSContext *ctx, JSWriteFunc *write_func);
 void JS_PrintValue(JSContext *ctx, JSValue val);

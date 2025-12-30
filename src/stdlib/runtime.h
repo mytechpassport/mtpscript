@@ -44,6 +44,12 @@ mtpscript_string_t *mtpscript_json_serialize_string(const char *value);
 mtpscript_string_t *mtpscript_json_serialize_bool(bool value);
 mtpscript_string_t *mtpscript_json_serialize_null(void);
 
+// Basic CBOR serialization (RFC 7049 §3.9 deterministic)
+mtpscript_string_t *mtpscript_cbor_serialize_int(int64_t value);
+mtpscript_string_t *mtpscript_cbor_serialize_string(const char *value);
+mtpscript_string_t *mtpscript_cbor_serialize_bool(bool value);
+mtpscript_string_t *mtpscript_cbor_serialize_null(void);
+
 // FNV-1a 64-bit hashing (for structural equality and maps)
 uint64_t mtpscript_fnv1a_64(const void *data, size_t length);
 uint64_t mtpscript_fnv1a_64_string(const char *str);

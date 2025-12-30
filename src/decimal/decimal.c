@@ -36,7 +36,21 @@ mtpscript_string_t *mtpscript_decimal_to_string(mtpscript_decimal_t d) {
     } else {
         long long integer_part = d.value / (long long)pow(10, d.scale);
         long long fractional_part = llabs(d.value % (long long)pow(10, d.scale));
-        sprintf(buf, "%lld.%0*lld", integer_part, d.scale, fractional_part);
+
+        // Remove trailing zeros from fractional part
+        int actual_scale = d.scale;
+        long long temp_fractional = fractional_part;
+        while (actual_scale > 0 && temp_fractional % 10 == 0) {
+            temp_fractional /= 10;
+            actual_scale--;
+        }
+
+        if (actual_scale == 0) {
+            // No fractional part left
+            sprintf(buf, "%lld", integer_part);
+        } else {
+            sprintf(buf, "%lld.%0*lld", integer_part, actual_scale, temp_fractional);
+        }
     }
     return mtpscript_string_from_cstr(buf);
 }
@@ -66,4 +80,23 @@ mtpscript_decimal_t mtpscript_decimal_div(mtpscript_decimal_t a, mtpscript_decim
     long long numerator = a.value * (long long)pow(10, precision_increase);
     mtpscript_decimal_t res = {numerator / b.value, a.scale + precision_increase - b.scale};
     return res;
+}
+
+int mtpscript_decimal_cmp(mtpscript_decimal_t a, mtpscript_decimal_t b) {
+    // Normalize scales by bringing both decimals to the same scale
+    mtpscript_decimal_t a_norm = a;
+    mtpscript_decimal_t b_norm = b;
+
+    while (a_norm.scale < b_norm.scale) {
+        a_norm.value *= 10;
+        a_norm.scale++;
+    }
+    while (b_norm.scale < a_norm.scale) {
+        b_norm.value *= 10;
+        b_norm.scale++;
+    }
+
+    if (a_norm.value < b_norm.value) return -1;
+    if (a_norm.value > b_norm.value) return 1;
+    return 0;
 }

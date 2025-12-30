@@ -38,6 +38,7 @@
 #include "gas_costs.h"
 #include "mquickjs_effects.h"
 #include "mquickjs_errors.h"
+#include "src/decimal/decimal.h"
 
 /* MTPScript Decimal type */
 typedef struct JSDecimal {
@@ -1308,6 +1309,17 @@ BOOL JS_IsNumber(JSContext *ctx, JSValue val)
         void *ptr = JS_VALUE_TO_PTR(val);
         int mtag = js_get_mtag(ptr);
         return (mtag == JS_MTAG_FLOAT64 || mtag == JS_MTAG_INT64);
+    } else {
+        return FALSE;
+    }
+}
+
+BOOL JS_IsDecimal(JSContext *ctx, JSValue val)
+{
+    if (JS_IsPtr(val)) {
+        void *ptr = JS_VALUE_TO_PTR(val);
+        int mtag = js_get_mtag(ptr);
+        return (mtag == JS_MTAG_DECIMAL);
     } else {
         return FALSE;
     }
@@ -3858,6 +3870,236 @@ JSValue JS_Freeze(JSContext *ctx, JSValue obj)
     return obj;
 }
 
+JS_BOOL JS_StructuralEqual(JSContext *ctx, JSValue a, JSValue b)
+{
+    return js_structural_eq(ctx, a, b);
+}
+
+/* CBOR serialization for deterministic hashing (RFC 7049 §3.9) */
+typedef struct {
+    uint8_t *buf;
+    size_t size;
+    size_t capacity;
+} CBORBuffer;
+
+static void cbor_buf_init(CBORBuffer *buf) {
+    buf->buf = NULL;
+    buf->size = 0;
+    buf->capacity = 0;
+}
+
+static void cbor_buf_free(CBORBuffer *buf) {
+    free(buf->buf);
+}
+
+static int cbor_buf_append(CBORBuffer *buf, const uint8_t *data, size_t len) {
+    if (buf->size + len > buf->capacity) {
+        size_t new_cap = buf->capacity ? buf->capacity * 2 : 64;
+        while (new_cap < buf->size + len) new_cap *= 2;
+        uint8_t *new_buf = realloc(buf->buf, new_cap);
+        if (!new_buf) return -1;
+        buf->buf = new_buf;
+        buf->capacity = new_cap;
+    }
+    memcpy(buf->buf + buf->size, data, len);
+    buf->size += len;
+    return 0;
+}
+
+static int cbor_encode_uint(CBORBuffer *buf, uint64_t val, uint8_t major_type) {
+    uint8_t hdr;
+    if (val < 24) {
+        hdr = major_type | val;
+        return cbor_buf_append(buf, &hdr, 1);
+    } else if (val <= 0xFF) {
+        hdr = major_type | 24;
+        if (cbor_buf_append(buf, &hdr, 1) < 0) return -1;
+        uint8_t v = val;
+        return cbor_buf_append(buf, &v, 1);
+    } else if (val <= 0xFFFF) {
+        hdr = major_type | 25;
+        if (cbor_buf_append(buf, &hdr, 1) < 0) return -1;
+        uint16_t v = __builtin_bswap16(val);
+        return cbor_buf_append(buf, (uint8_t*)&v, 2);
+    } else if (val <= 0xFFFFFFFFULL) {
+        hdr = major_type | 26;
+        if (cbor_buf_append(buf, &hdr, 1) < 0) return -1;
+        uint32_t v = __builtin_bswap32(val);
+        return cbor_buf_append(buf, (uint8_t*)&v, 4);
+    } else {
+        hdr = major_type | 27;
+        if (cbor_buf_append(buf, &hdr, 1) < 0) return -1;
+        uint64_t v = __builtin_bswap64(val);
+        return cbor_buf_append(buf, (uint8_t*)&v, 8);
+    }
+}
+
+static int cbor_encode_int(CBORBuffer *buf, int64_t val) {
+    if (val >= 0) {
+        return cbor_encode_uint(buf, (uint64_t)val, 0);
+    } else {
+        return cbor_encode_uint(buf, (uint64_t)(-(val + 1)), 1);
+    }
+}
+
+static int cbor_encode_bytes(CBORBuffer *buf, const uint8_t *data, size_t len) {
+    if (cbor_encode_uint(buf, len, 4) < 0) return -1;
+    return cbor_buf_append(buf, data, len);
+}
+
+static int cbor_encode_string(CBORBuffer *buf, const char *str, size_t len) {
+    if (cbor_encode_uint(buf, len, 3) < 0) return -1;
+    return cbor_buf_append(buf, (const uint8_t*)str, len);
+}
+
+static int cbor_serialize_value(JSContext *ctx, JSValue val, CBORBuffer *buf);
+
+static int cbor_serialize_object(JSContext *ctx, JSValue obj, CBORBuffer *buf) {
+    /* Get object keys in deterministic order */
+    JSValue keys = JS_UNDEFINED;
+    JSGCRef keys_ref;
+
+    keys = js_object_keys(ctx, NULL, 1, &obj);
+    if (JS_IsException(keys)) {
+        return -1;
+    }
+    *JS_PushGCRef(ctx, &keys_ref) = keys;
+
+    JSObject *obj_keys = JS_VALUE_TO_PTR(keys);
+    uint32_t len = obj_keys->u.array.len;
+
+    /* Encode as map */
+    if (cbor_encode_uint(buf, len, 5) < 0) {
+        JS_PopGCRef(ctx, &keys_ref);
+        return -1;
+    }
+
+    /* For deterministic ordering, we need to sort keys by their CBOR representation */
+    /* For now, use the order returned by js_object_keys (which should be insertion order) */
+    JSValueArray *karr = JS_VALUE_TO_PTR(obj_keys->u.array.tab);
+    for (uint32_t i = 0; i < len; i++) {
+        JSValue key = karr->arr[i];
+        JSValue key_str = JS_ToString(ctx, key);
+        if (JS_IsException(key_str)) {
+            JS_PopGCRef(ctx, &keys_ref);
+            return -1;
+        }
+
+        JSCStringBuf sbuf;
+        const char *key_cstr = JS_ToCString(ctx, key_str, &sbuf);
+        size_t key_len = strlen(key_cstr);
+
+        /* Encode key */
+        if (cbor_encode_string(buf, key_cstr, key_len) < 0) {
+            JS_PopGCRef(ctx, &keys_ref);
+            return -1;
+        }
+
+        /* Encode value */
+        JSValue prop_val = JS_GetProperty(ctx, obj, key);
+        if (JS_IsException(prop_val)) {
+            JS_PopGCRef(ctx, &keys_ref);
+            return -1;
+        }
+
+        if (cbor_serialize_value(ctx, prop_val, buf) < 0) {
+            JS_PopGCRef(ctx, &keys_ref);
+            return -1;
+        }
+    }
+
+    JS_PopGCRef(ctx, &keys_ref);
+    return 0;
+}
+
+static int cbor_serialize_array(JSContext *ctx, JSValue arr, CBORBuffer *buf) {
+    JSObject *obj = JS_VALUE_TO_PTR(arr);
+    uint32_t len = obj->u.array.len;
+
+    if (cbor_encode_uint(buf, len, 4) < 0) return -1;
+
+    for (uint32_t i = 0; i < len; i++) {
+        JSValue elem = JS_GetPropertyUint32(ctx, arr, i);
+        if (JS_IsException(elem)) return -1;
+        if (cbor_serialize_value(ctx, elem, buf) < 0) return -1;
+    }
+    return 0;
+}
+
+static int cbor_serialize_value(JSContext *ctx, JSValue val, CBORBuffer *buf) {
+    if (JS_IsInt(val)) {
+        return cbor_encode_int(buf, JS_VALUE_GET_INT(val));
+    } else if (JS_IsBool(val)) {
+        uint8_t major = JS_VALUE_GET_SPECIAL_VALUE(val) ? 0xF5 : 0xF4; /* true/false */
+        return cbor_buf_append(buf, &major, 1);
+    } else if (JS_IsNull(val)) {
+        uint8_t major = 0xF6; /* null */
+        return cbor_buf_append(buf, &major, 1);
+    } else if (JS_IsUndefined(val)) {
+        uint8_t major = 0xF7; /* undefined */
+        return cbor_buf_append(buf, &major, 1);
+    } else if (JS_IsString(ctx, val)) {
+        JSCStringBuf sbuf;
+        const char *str = JS_ToCString(ctx, val, &sbuf);
+        return cbor_encode_string(buf, str, strlen(str));
+    } else if (JS_IsNumber(ctx, val)) {
+        /* Encode as float64 for deterministic representation */
+        uint8_t hdr = 0xFB; /* float64 */
+        if (cbor_buf_append(buf, &hdr, 1) < 0) return -1;
+        double d;
+        JS_ToNumber(ctx, &d, val);
+        uint64_t bits;
+        memcpy(&bits, &d, sizeof(double));
+        bits = __builtin_bswap64(bits);
+        return cbor_buf_append(buf, (uint8_t*)&bits, 8);
+    } else if (JS_IsPtr(val)) {
+        void *ptr = JS_VALUE_TO_PTR(val);
+        switch (js_get_mtag(ptr)) {
+        case JS_MTAG_OBJECT: {
+            JSObject *obj = (JSObject*)ptr;
+            if (obj->class_id == JS_CLASS_ARRAY) {
+                return cbor_serialize_array(ctx, val, buf);
+            } else {
+                return cbor_serialize_object(ctx, val, buf);
+            }
+        }
+        case JS_MTAG_DECIMAL: {
+            /* Encode decimal as string for deterministic representation */
+            JSDecimal *d = (JSDecimal*)ptr;
+            return cbor_encode_string(buf, d->value, strlen(d->value));
+        }
+        default: {
+            /* For other types, encode as null for now */
+            uint8_t major = 0xF6;
+            return cbor_buf_append(buf, &major, 1);
+        }
+        }
+    }
+    return -1; /* Unsupported type */
+}
+
+uint64_t JS_CBORSerialize(JSContext *ctx, JSValue val, uint8_t **out_buf, size_t *out_len) {
+    CBORBuffer buf;
+    cbor_buf_init(&buf);
+
+    if (cbor_serialize_value(ctx, val, &buf) < 0) {
+        cbor_buf_free(&buf);
+        return 0; /* Error */
+    }
+
+    *out_buf = buf.buf;
+    *out_len = buf.size;
+
+    /* Return FNV-1a hash of the CBOR data */
+    uint64_t hash = 0xcbf29ce484222325ULL; /* FNV-1a 64-bit offset basis */
+    for (size_t i = 0; i < buf.size; i++) {
+        hash ^= buf.buf[i];
+        hash *= 0x100000001b3ULL; /* FNV-1a 64-bit prime */
+    }
+
+    return hash;
+}
+
 void JS_SetInterruptHandler(JSContext *ctx, JSInterruptHandler *interrupt_handler)
 {
     ctx->interrupt_handler = interrupt_handler;
@@ -4957,7 +5199,7 @@ static no_inline JSValue js_relational_slow(JSContext *ctx, OPCodeEnum op)
 
 static BOOL js_strict_eq(JSContext *ctx, JSValue op1, JSValue op2);
 
-static BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
+BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
 {
     if (op1 == op2)
         return TRUE;
@@ -14389,24 +14631,54 @@ JSValue js_object_keys(JSContext *ctx, JSValue *this_val,
     pret->u.array.len = pos;
 
 #if MTPSCRIPT_DETERMINISTIC
-    /* Sort keys for canonical output */
+    /* Sort keys for canonical CBOR output (RFC 7049 §5) */
     if (pos > 1) {
         ret_arr = JS_VALUE_TO_PTR(pret->u.array.tab);
-        /* Use a simple insertion sort for now */
+        /* Use insertion sort with CBOR-based comparison */
         for (i = 1; i < pos; i++) {
             JSValue key = ret_arr->arr[i];
             int j = i - 1;
-            JSCStringBuf sbuf1, sbuf2;
-            const char *s1 = JS_ToCString(ctx, key, &sbuf1);
+
+            /* Get CBOR encoding of current key */
+            uint8_t *key_cbor_buf = NULL;
+            size_t key_cbor_len = 0;
+            uint64_t key_hash = JS_CBORSerialize(ctx, key, &key_cbor_buf, &key_cbor_len);
+            if (!key_cbor_buf) continue; /* Skip on error */
+
             while (j >= 0) {
-                const char *s2 = JS_ToCString(ctx, ret_arr->arr[j], &sbuf2);
-                if (strcmp(s1, s2) < 0) {
+                JSValue prev_key = ret_arr->arr[j];
+                uint8_t *prev_cbor_buf = NULL;
+                size_t prev_cbor_len = 0;
+                uint64_t prev_hash = JS_CBORSerialize(ctx, prev_key, &prev_cbor_buf, &prev_cbor_len);
+
+                if (!prev_cbor_buf) {
+                    j--; /* Skip on error */
+                    continue;
+                }
+
+                /* Compare CBOR encodings byte-by-byte */
+                int cmp = 0;
+                size_t min_len = key_cbor_len < prev_cbor_len ? key_cbor_len : prev_cbor_len;
+                for (size_t k = 0; k < min_len; k++) {
+                    if (key_cbor_buf[k] != prev_cbor_buf[k]) {
+                        cmp = (key_cbor_buf[k] < prev_cbor_buf[k]) ? -1 : 1;
+                        break;
+                    }
+                }
+                if (cmp == 0) {
+                    cmp = (key_cbor_len < prev_cbor_len) ? -1 : (key_cbor_len > prev_cbor_len) ? 1 : 0;
+                }
+
+                free(prev_cbor_buf);
+
+                if (cmp < 0) {
                     ret_arr->arr[j + 1] = ret_arr->arr[j];
                     j--;
                 } else {
                     break;
                 }
             }
+            free(key_cbor_buf);
             ret_arr->arr[j + 1] = key;
         }
     }
@@ -15915,6 +16187,7 @@ JSValue js_date_constructor(JSContext *ctx, JSValue *this_val,
 }
 
 /* Decimal */
+JSValue js_decimal_compare(JSContext *ctx, JSValue *this_val, int argc, JSValue *argv);
 
 JSValue js_decimal_constructor(JSContext *ctx, JSValue *this_val,
                                int argc, JSValue *argv)
@@ -15957,6 +16230,28 @@ JSValue js_decimal_toString(JSContext *ctx, JSValue *this_val,
 {
     printf("js_decimal_toString called\n");
     return JS_ToString(ctx, *this_val);
+}
+
+JSValue js_decimal_compare(JSContext *ctx, JSValue *this_val,
+                          int argc, JSValue *argv)
+{
+    if (argc < 1)
+        return JS_ThrowTypeError(ctx, "Decimal.compare requires another decimal");
+
+    if (!JS_IsDecimal(ctx, argv[0]))
+        return JS_ThrowTypeError(ctx, "Argument must be a Decimal");
+
+    JSDecimal *d1 = JS_VALUE_TO_PTR(*this_val);
+    JSDecimal *d2 = JS_VALUE_TO_PTR(argv[0]);
+
+    mtpscript_decimal_t dec1 = mtpscript_decimal_from_string(d1->value);
+    dec1.scale = d1->scale;
+
+    mtpscript_decimal_t dec2 = mtpscript_decimal_from_string(d2->value);
+    dec2.scale = d2->scale;
+
+    int cmp = mtpscript_decimal_cmp(dec1, dec2);
+    return JS_NewInt32(ctx, cmp);
 }
 
 /* global */

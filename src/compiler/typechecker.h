@@ -12,7 +12,9 @@
 #include "ast.h"
 
 typedef struct {
-    mtpscript_hash_t *env;
+    mtpscript_hash_t *env;        // Variable name -> type mapping
+    mtpscript_hash_t *declared;   // Variable name -> bool (immutability tracking)
+    mtpscript_vector_t *used_effects; // Effects used in this scope
 } mtpscript_type_env_t;
 
 mtpscript_type_env_t *mtpscript_type_env_new(void);

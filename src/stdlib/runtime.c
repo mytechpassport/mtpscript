@@ -77,6 +77,97 @@ mtpscript_string_t *mtpscript_json_serialize_null(void) {
     return mtpscript_string_from_cstr("null");
 }
 
+// Basic CBOR serialization (RFC 7049 §3.9 deterministic)
+// Returns binary CBOR data as a string
+mtpscript_string_t *mtpscript_cbor_serialize_int(int64_t value) {
+    mtpscript_string_t *cbor = mtpscript_string_new();
+
+    if (value >= 0) {
+        if (value <= 23) {
+            // Small positive integer: major type 0, value in low 5 bits
+            uint8_t byte = 0x00 | (uint8_t)value;
+            mtpscript_string_append(cbor, (char*)&byte, 1);
+        } else if (value <= 255) {
+            // 1-byte positive integer
+            uint8_t header = 0x18; // major type 0, additional info 24
+            mtpscript_string_append(cbor, (char*)&header, 1);
+            uint8_t val = (uint8_t)value;
+            mtpscript_string_append(cbor, (char*)&val, 1);
+        } else if (value <= 65535) {
+            // 2-byte positive integer
+            uint8_t header = 0x19; // major type 0, additional info 25
+            mtpscript_string_append(cbor, (char*)&header, 1);
+            uint16_t val = (uint16_t)value;
+            // Big-endian
+            uint8_t bytes[2] = {(uint8_t)(val >> 8), (uint8_t)val};
+            mtpscript_string_append(cbor, (char*)bytes, 2);
+        } else {
+            // 8-byte positive integer (simplified)
+            uint8_t header = 0x1B; // major type 0, additional info 27
+            mtpscript_string_append(cbor, (char*)&header, 1);
+            // Big-endian 64-bit
+            for (int i = 7; i >= 0; i--) {
+                uint8_t byte = (value >> (i * 8)) & 0xFF;
+                mtpscript_string_append(cbor, (char*)&byte, 1);
+            }
+        }
+    } else {
+        // Negative integers (simplified for basic implementation)
+        uint64_t abs_val = (uint64_t)(-value - 1);
+        uint8_t header = 0x20 | 0x1B; // major type 1, additional info 27
+        mtpscript_string_append(cbor, (char*)&header, 1);
+        for (int i = 7; i >= 0; i--) {
+            uint8_t byte = (abs_val >> (i * 8)) & 0xFF;
+            mtpscript_string_append(cbor, (char*)&byte, 1);
+        }
+    }
+
+    return cbor;
+}
+
+mtpscript_string_t *mtpscript_cbor_serialize_string(const char *value) {
+    mtpscript_string_t *cbor = mtpscript_string_new();
+    size_t len = strlen(value);
+
+    if (len <= 23) {
+        // Small text string: major type 3, length in low 5 bits
+        uint8_t header = 0x60 | (uint8_t)len;
+        mtpscript_string_append(cbor, (char*)&header, 1);
+    } else if (len <= 255) {
+        // 1-byte length text string
+        uint8_t header = 0x78; // major type 3, additional info 24
+        mtpscript_string_append(cbor, (char*)&header, 1);
+        uint8_t len_byte = (uint8_t)len;
+        mtpscript_string_append(cbor, (char*)&len_byte, 1);
+    } else {
+        // 8-byte length text string (simplified)
+        uint8_t header = 0x7B; // major type 3, additional info 27
+        mtpscript_string_append(cbor, (char*)&header, 1);
+        for (int i = 7; i >= 0; i--) {
+            uint8_t byte = (len >> (i * 8)) & 0xFF;
+            mtpscript_string_append(cbor, (char*)&byte, 1);
+        }
+    }
+
+    // Add the string data
+    mtpscript_string_append_cstr(cbor, value);
+    return cbor;
+}
+
+mtpscript_string_t *mtpscript_cbor_serialize_bool(bool value) {
+    mtpscript_string_t *cbor = mtpscript_string_new();
+    uint8_t byte = value ? 0xF5 : 0xF4; // true/false
+    mtpscript_string_append(cbor, (char*)&byte, 1);
+    return cbor;
+}
+
+mtpscript_string_t *mtpscript_cbor_serialize_null(void) {
+    mtpscript_string_t *cbor = mtpscript_string_new();
+    uint8_t byte = 0xF6; // null
+    mtpscript_string_append(cbor, (char*)&byte, 1);
+    return cbor;
+}
+
 // FNV-1a 64-bit hashing implementation
 #define FNV1A_64_OFFSET 0xcbf29ce484222325ULL
 #define FNV1A_64_PRIME 0x100000001b3ULL

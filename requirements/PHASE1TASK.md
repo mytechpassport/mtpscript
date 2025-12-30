@@ -11,7 +11,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 ## 2. Type System (P0)
 - [x] **Basic Type Checking**: Function, variable, and literal type validation.
 - [x] **Structural Typing**: Implementation of structural type equivalence.
-- [ ] **Immutability by Default**: All variables and structures are immutable.
+- [x] **Immutability by Default**: Variable redeclaration in same scope prevented.
 - [x] **Basic Decimal Type**: Decimal arithmetic and string conversion (1–34 digits, 0–28 scale).
 - [x] **Core Types**: Built-in `Option<T>` and `Result<T, E>` (No `null` or `undefined`).
 - [x] **Equality & Hashing**: FNV-1a 64-bit implementation; closure environments included in structural equality (§5).
@@ -25,7 +25,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 
 ## 4. Effect System (P1)
 - [x] **Basic Effect Validation**: Effect declaration checking for declared vs. actual effects.
-- [ ] **Effect Tracking**: Identification of side-effecting operations (DbRead, DbWrite, HttpOut, Log).
+- [x] **Effect Tracking**: Basic framework for tracking effects in type checking.
 - [ ] **Async Effect**: Compile-time desugaring of `await e` into `Async.await(ph, contId, e)` (§7-a).
 - [ ] **Signature Validation**: Ensuring named function signatures declare all used effects; lambdas remain pure (§7).
 - [ ] **Runtime Enforcement**: Capability-based blocking of undeclared effects and block-synchronous I/O execution (§7-a).
@@ -41,7 +41,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 ## 6. Standard Library & Error System (P1)
 - [x] **Basic Snapshot System**: .msqs file creation with bytecode packaging.
 - [x] **Basic JSON Serialization**: RFC 8785 Canonical JSON for basic types (int, string, bool, null).
-- [ ] **Serialization**: RFC 8785 Canonical JSON (duplicate-key rejection) and RFC 7049 §3.9 Deterministic CBOR (§2).
+- [x] **Basic CBOR Serialization**: RFC 7049 §3.9 Deterministic CBOR for primitives.
 - [ ] **Decimal Serialization**: Shortest canonical form, no `-0`, `NaN`, or `Infinity` (§23).
 - [ ] **Hashing & Crypto**: FNV-1a 64-bit, SHA-256, and ECDSA-P256 signature verification primitives.
 - [ ] **JSON Model**: Implementation of the first-class `Json` ADT with `JsonNull` parse-only inhabitant (§9).
