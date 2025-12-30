@@ -100,3 +100,86 @@ int mtpscript_decimal_cmp(mtpscript_decimal_t a, mtpscript_decimal_t b) {
     if (a_norm.value > b_norm.value) return 1;
     return 0;
 }
+
+// Decimal serialization (§23) - shortest canonical form, no -0, NaN, or Infinity
+mtpscript_string_t *mtpscript_decimal_to_json(mtpscript_decimal_t d) {
+    // Remove trailing zeros from fractional part to get shortest form
+    int64_t value = d.value;
+    int32_t scale = d.scale;
+
+    // Handle zero specially (no -0)
+    if (value == 0) {
+        return mtpscript_string_from_cstr("0");
+    }
+
+    // Remove trailing zeros from scale
+    while (scale > 0 && value % 10 == 0) {
+        value /= 10;
+        scale--;
+    }
+
+    char buf[64];
+    if (scale == 0) {
+        sprintf(buf, "%lld", value);
+    } else {
+        // Calculate integer and fractional parts
+        int64_t int_part = value;
+        int64_t frac_part = 0;
+
+        // Handle negative scale by multiplying
+        if (scale < 0) {
+            // This shouldn't happen in normal usage, but handle it
+            int_part = value * (int64_t)pow(10, -scale);
+            frac_part = 0;
+            scale = 0;
+        } else {
+            // Split into integer and fractional parts
+            int64_t divisor = (int64_t)pow(10, scale);
+            int_part = value / divisor;
+            frac_part = value % divisor;
+
+            // Remove trailing zeros from fractional part
+            while (frac_part > 0 && frac_part % 10 == 0) {
+                frac_part /= 10;
+                scale--;
+            }
+        }
+
+        if (scale == 0) {
+            sprintf(buf, "%lld", int_part);
+        } else {
+            sprintf(buf, "%lld.%0*lld", int_part, scale, frac_part);
+        }
+    }
+
+    return mtpscript_string_from_cstr(buf);
+}
+
+mtpscript_string_t *mtpscript_decimal_to_cbor(mtpscript_decimal_t d) {
+    // For CBOR, we serialize as a string in shortest canonical form
+    mtpscript_string_t *json_str = mtpscript_decimal_to_json(d);
+
+    // Create CBOR text string
+    mtpscript_string_t *cbor = mtpscript_string_new();
+    size_t len = json_str->length;
+    const char *data = mtpscript_string_cstr(json_str);
+
+    if (len <= 23) {
+        // Small text string: major type 3, length in low 5 bits
+        uint8_t header = 0x60 | (uint8_t)len;
+        mtpscript_string_append(cbor, (char*)&header, 1);
+    } else {
+        // 8-byte length text string
+        uint8_t header = 0x7B; // major type 3, additional info 27
+        mtpscript_string_append(cbor, (char*)&header, 1);
+        for (int i = 7; i >= 0; i--) {
+            uint8_t byte = (len >> (i * 8)) & 0xFF;
+            mtpscript_string_append(cbor, (char*)&byte, 1);
+        }
+    }
+
+    mtpscript_string_append(cbor, data, len);
+    mtpscript_string_free(json_str);
+
+    return cbor;
+}

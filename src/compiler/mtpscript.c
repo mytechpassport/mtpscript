@@ -132,6 +132,44 @@ void *mtpscript_hash_get(mtpscript_hash_t *hash, const char *key) {
     return NULL;
 }
 
+// Hash iteration implementation
+mtpscript_hash_iterator_t *mtpscript_hash_iterator_new(mtpscript_hash_t *hash) {
+    mtpscript_hash_iterator_t *iter = MTPSCRIPT_MALLOC(sizeof(mtpscript_hash_iterator_t));
+    iter->hash = hash;
+    iter->index = 0;
+    return iter;
+}
+
+void mtpscript_hash_iterator_free(mtpscript_hash_iterator_t *iter) {
+    MTPSCRIPT_FREE(iter);
+}
+
+bool mtpscript_hash_iterator_next(mtpscript_hash_iterator_t *iter) {
+    while (iter->index < iter->hash->size) {
+        if (iter->hash->entries[iter->index].key != NULL) {
+            return true;
+        }
+        iter->index++;
+    }
+    return false;
+}
+
+const char *mtpscript_hash_iterator_key(mtpscript_hash_iterator_t *iter) {
+    if (iter->index < iter->hash->size) {
+        return iter->hash->entries[iter->index].key;
+    }
+    return NULL;
+}
+
+void *mtpscript_hash_iterator_value(mtpscript_hash_iterator_t *iter) {
+    if (iter->index < iter->hash->size) {
+        void *value = iter->hash->entries[iter->index].value;
+        iter->index++; // Advance to next entry
+        return value;
+    }
+    return NULL;
+}
+
 // Source mapping utilities
 mtpscript_string_t *mtpscript_location_to_string(mtpscript_location_t location) {
     mtpscript_string_t *str = mtpscript_string_new();

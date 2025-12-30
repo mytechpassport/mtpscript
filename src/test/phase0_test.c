@@ -10,6 +10,13 @@
 #include <stdint.h>
 #include "../../mquickjs.h"
 
+// Include MTPScript compiler headers for Phase 1 tests
+#include "../compiler/lexer.h"
+#include "../compiler/parser.h"
+#include "../compiler/typechecker.h"
+#include "../compiler/codegen.h"
+#include "../stdlib/runtime.h"
+
 // Stubs for functions required by mtpjs_stdlib.h
 JSValue js_print(JSContext *ctx, JSValue *this_val, int argc, JSValue *argv) { return JS_UNDEFINED; }
 JSValue js_date_now(JSContext *ctx, JSValue *this_val, int argc, JSValue *argv) { return JS_UNDEFINED; }
@@ -284,12 +291,161 @@ bool test_canonical_json() {
     JSValue res3 = JS_Eval(ctx, script3, strlen(script3), "test.js", EVAL_FLAGS);
     ASSERT(get_bool(ctx, res3) == true, "Structural equality for objects failed");
 
+    // Test deterministic response hashing
+    uint8_t hash1[32], hash2[32];
+    JSValue test_obj = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, test_obj, "z", JS_NewInt32(ctx, 3));
+    JS_SetPropertyStr(ctx, test_obj, "a", JS_NewInt32(ctx, 1));
+    JS_SetPropertyStr(ctx, test_obj, "b", JS_NewInt32(ctx, 2));
+
+    // Hash the same object twice - should be identical
+    ASSERT(JS_JSONHash(ctx, test_obj, hash1), "JSON hashing failed");
+    ASSERT(JS_JSONHash(ctx, test_obj, hash2), "JSON hashing failed");
+    ASSERT(memcmp(hash1, hash2, 32) == 0, "JSON hashing should be deterministic");
+
+    // Hash a different object - should be different
+    JSValue test_obj2 = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, test_obj2, "a", JS_NewInt32(ctx, 1));
+    JS_SetPropertyStr(ctx, test_obj2, "b", JS_NewInt32(ctx, 2));
+    JS_SetPropertyStr(ctx, test_obj2, "z", JS_NewInt32(ctx, 4)); // Different value
+
+    uint8_t hash3[32];
+    ASSERT(JS_JSONHash(ctx, test_obj2, hash3), "JSON hashing failed");
+    ASSERT(memcmp(hash1, hash3, 32) != 0, "Different objects should have different hashes");
+
     JS_FreeContext(ctx);
     return true;
 }
 
+/**
+ * Test 7.1: JSON ADT with JsonNull Constraint
+ */
+bool test_json_adt() {
+    // Test that JsonNull can only be created through parsing
+    mtpscript_error_t *error = NULL;
+    mtpscript_json_t *null_val = mtpscript_json_parse("null", &error);
+    ASSERT(null_val != NULL, "JsonNull should be created through parsing");
+    ASSERT(mtpscript_json_is_null(null_val), "Parsed null should be JsonNull");
+
+    // Test that constructors don't create JsonNull
+    mtpscript_json_t *bool_val = mtpscript_json_new_bool(true);
+    ASSERT(!mtpscript_json_is_null(bool_val), "Bool constructor should not create JsonNull");
+    mtpscript_json_free(bool_val);
+
+    // Test basic JSON operations
+    mtpscript_json_t *obj = mtpscript_json_new_object();
+    mtpscript_json_t *str_val = mtpscript_json_new_string("hello");
+    mtpscript_json_object_set(obj, "key", str_val);
+
+    mtpscript_hash_t *obj_hash = mtpscript_json_as_object(obj);
+    ASSERT(obj_hash != NULL, "Should be able to get object hash");
+
+    mtpscript_json_free(null_val);
+    mtpscript_json_free(obj);
+
+    return true;
+}
+
+/**
+ * Test 7.2: MTPScript Compiler Pipeline
+ */
+bool test_compiler_pipeline() {
+    const char *source = "func add(a: int, b: int) -> int { return a + b }";
+
+    // Test lexer
+    mtpscript_lexer_t *lexer = mtpscript_lexer_new(source, "test.mtp");
+    mtpscript_vector_t *tokens;
+    mtpscript_error_t *err = mtpscript_lexer_tokenize(lexer, &tokens);
+    ASSERT(err == NULL, "Lexer should succeed");
+    ASSERT(tokens->size > 0, "Should have tokens");
+
+    // Test parser
+    mtpscript_parser_t *parser = mtpscript_parser_new(tokens);
+    mtpscript_program_t *program;
+    err = mtpscript_parser_parse(parser, &program);
+    ASSERT(err == NULL, "Parser should succeed");
+    ASSERT(program->declarations->size > 0, "Should have declarations");
+
+    // Test type checker
+    err = mtpscript_typecheck_program(program);
+    ASSERT(err == NULL, "Type checker should succeed");
+
+    // Test code generator
+    mtpscript_string_t *output;
+    err = mtpscript_codegen_program(program, &output);
+    ASSERT(err == NULL, "Code generator should succeed");
+    ASSERT(output->length > 0, "Should generate code");
+
+    // Cleanup
+    mtpscript_string_free(output);
+    mtpscript_program_free(program);
+    mtpscript_parser_free(parser);
+    mtpscript_lexer_free(lexer);
+
+    return true;
+}
+
+/**
+ * Test 7.3: JavaScript Code Generation
+ */
+bool test_js_codegen() {
+    const char *source = "func test() { return 42 }";
+
+    mtpscript_lexer_t *lexer = mtpscript_lexer_new(source, "test.mtp");
+    mtpscript_vector_t *tokens;
+    mtpscript_lexer_tokenize(lexer, &tokens);
+
+    mtpscript_parser_t *parser = mtpscript_parser_new(tokens);
+    mtpscript_program_t *program;
+    mtpscript_parser_parse(parser, &program);
+
+    mtpscript_string_t *output;
+    mtpscript_codegen_program(program, &output);
+
+    const char *js_code = mtpscript_string_cstr(output);
+    ASSERT(strstr(js_code, "function test()") != NULL, "Should generate function");
+    ASSERT(strstr(js_code, "return 42") != NULL, "Should generate return statement");
+
+    mtpscript_string_free(output);
+    mtpscript_program_free(program);
+    mtpscript_parser_free(parser);
+    mtpscript_lexer_free(lexer);
+
+    return true;
+}
+
+/**
+ * Test 7.4: Pipeline Operator Left-Associativity
+ */
+bool test_pipeline_associativity() {
+    const char *source = "func f(x) { return x + 1 }\nfunc g(x) { return x * 2 }\nfunc h(x) { return x - 3 }\nfunc test() { return 5 |> f |> g |> h }";
+
+    mtpscript_lexer_t *lexer = mtpscript_lexer_new(source, "test.mtp");
+    mtpscript_vector_t *tokens;
+    mtpscript_lexer_tokenize(lexer, &tokens);
+
+    mtpscript_parser_t *parser = mtpscript_parser_new(tokens);
+    mtpscript_program_t *program;
+    mtpscript_parser_parse(parser, &program);
+
+    mtpscript_string_t *output;
+    mtpscript_codegen_program(program, &output);
+
+    const char *js_code = mtpscript_string_cstr(output);
+    // Pipeline should be left-associative: a |> b |> c ≡ (a |> b) |> c
+    // Which generates: c(b(a))
+    ASSERT(strstr(js_code, "h(g(f(") != NULL, "Pipeline should be left-associative");
+
+    mtpscript_string_free(output);
+    mtpscript_program_free(program);
+    mtpscript_parser_free(parser);
+    mtpscript_lexer_free(lexer);
+
+    return true;
+}
+
 int main() {
-    printf("Running Phase 0: MicroQuickJS Hardening Tests...\n");
+    printf("Running Phase 0 & 1: MicroQuickJS Hardening & MTPScript Compiler Tests...\n");
     int passed = 0;
     int total = 0;
 
@@ -303,6 +459,7 @@ int main() {
             printf("FAIL: %s\n", #name); \
         }
 
+    // Phase 0 Tests
     RUN_TEST(test_snapshot_isolation_and_wipe);
     RUN_TEST(test_determinism_and_seed);
     RUN_TEST(test_gas_enforcement);
@@ -310,7 +467,13 @@ int main() {
     RUN_TEST(test_forbidden_features);
     RUN_TEST(test_canonical_json);
 
-    printf("\nPhase 0 Tests: %d passed, %d total\n", passed, total);
+    // Phase 1 Tests
+    RUN_TEST(test_json_adt);
+    RUN_TEST(test_compiler_pipeline);
+    RUN_TEST(test_js_codegen);
+    RUN_TEST(test_pipeline_associativity);
+
+    printf("\nPhase 0 & 1 Tests: %d passed, %d total\n", passed, total);
     return (passed == total) ? 0 : 1;
 }
 

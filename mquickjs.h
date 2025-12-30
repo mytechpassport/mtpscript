@@ -394,6 +394,9 @@ JS_BOOL JS_StructuralEqual(JSContext *ctx, JSValue a, JSValue b);
 /* CBOR serialization functions */
 uint64_t JS_CBORSerialize(JSContext *ctx, JSValue val, uint8_t **out_buf, size_t *out_len);
 
+/* JSON hashing functions */
+JS_BOOL JS_JSONHash(JSContext *ctx, JSValue val, uint8_t out_hash[32]);
+
 /* debug functions */
 void JS_SetLogFunc(JSContext *ctx, JSWriteFunc *write_func);
 void JS_PrintValue(JSContext *ctx, JSValue val);

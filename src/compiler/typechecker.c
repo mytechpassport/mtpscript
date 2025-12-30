@@ -11,6 +11,7 @@
 
 // Forward declarations
 static void record_effect_usage(mtpscript_type_env_t *env, const char *effect);
+static mtpscript_error_t *validate_map_key_type(mtpscript_type_t *key_type);
 
 mtpscript_type_env_t *mtpscript_type_env_new(void) {
     mtpscript_type_env_t *env = MTPSCRIPT_MALLOC(sizeof(mtpscript_type_env_t));
@@ -71,6 +72,17 @@ static mtpscript_error_t *typecheck_expression(mtpscript_expression_t *expr, mtp
             *type_out = mtpscript_type_new(MTPSCRIPT_TYPE_INT); // Placeholder
             break;
         }
+        case MTPSCRIPT_EXPR_AWAIT_EXPR: {
+            // Await expressions require Async effect (§7-a)
+            record_effect_usage(env, "Async");
+
+            // Type check the inner expression
+            mtpscript_error_t *inner_error = typecheck_expression(expr->data.await.expression, env, type_out);
+            if (inner_error) return inner_error;
+
+            // Await returns the same type as the awaited expression
+            break;
+        }
         // TODO: Add type checking for Option/Result construction and access
         default: break;
     }
@@ -87,6 +99,61 @@ static void record_effect_usage(mtpscript_type_env_t *env, const char *effect) {
     }
     // Add new effect
     mtpscript_vector_push(env->used_effects, mtpscript_string_from_cstr(effect));
+}
+
+/* Validate type recursively - ensure Map key constraints (§5) */
+static mtpscript_error_t *validate_type(mtpscript_type_t *type) {
+    switch (type->kind) {
+        case MTPSCRIPT_TYPE_MAP:
+            // Validate Map key type - must be primitive with deterministic ordering
+            if (!type->key) return NULL; // Skip if not fully initialized
+            return validate_map_key_type(type->key);
+        case MTPSCRIPT_TYPE_OPTION:
+        case MTPSCRIPT_TYPE_LIST:
+            // Recursively validate inner types
+            if (type->inner) {
+                return validate_type(type->inner);
+            }
+            break;
+        case MTPSCRIPT_TYPE_RESULT:
+            // Validate both value and error types
+            if (type->value) {
+                mtpscript_error_t *err = validate_type(type->value);
+                if (err) return err;
+            }
+            if (type->error) {
+                return validate_type(type->error);
+            }
+            break;
+        default:
+            break;
+    }
+    return NULL;
+}
+
+/* Validate Map key type - ensure no function types and deterministic ordering (§5) */
+static mtpscript_error_t *validate_map_key_type(mtpscript_type_t *key_type) {
+    // Map keys cannot be functions (function exclusion constraint)
+    // This is a simplified check - in a full implementation, this would recursively
+    // check all nested types to ensure no function types exist in map keys
+
+    // For now, we just ensure the key type is one of the allowed primitive types
+    // that have deterministic ordering: Int, String, Bool, Decimal
+    switch (key_type->kind) {
+        case MTPSCRIPT_TYPE_INT:
+        case MTPSCRIPT_TYPE_STRING:
+        case MTPSCRIPT_TYPE_BOOL:
+        case MTPSCRIPT_TYPE_DECIMAL:
+            // These types have deterministic ordering via Tag → Hash → CBOR
+            return NULL;
+        default:
+            {
+                mtpscript_error_t *error = MTPSCRIPT_MALLOC(sizeof(mtpscript_error_t));
+                error->message = mtpscript_string_from_cstr("Map keys must be primitive types with deterministic ordering (Int, String, Bool, Decimal)");
+                error->location = (mtpscript_location_t){0, 0, "map_key_validation"};
+                return error;
+            }
+    }
 }
 
 static mtpscript_error_t *validate_function_effects(mtpscript_function_decl_t *func, mtpscript_vector_t *used_effects) {
@@ -194,9 +261,40 @@ static mtpscript_error_t *typecheck_declaration(mtpscript_declaration_t *decl, m
 
 mtpscript_error_t *mtpscript_typecheck_program(mtpscript_program_t *program) {
     mtpscript_type_env_t *env = mtpscript_type_env_new();
+
+    // First pass: validate all types in the program for Map constraints
     for (size_t i = 0; i < program->declarations->size; i++) {
-        typecheck_declaration(mtpscript_vector_get(program->declarations, i), env);
+        mtpscript_declaration_t *decl = mtpscript_vector_get(program->declarations, i);
+        if (decl->kind == MTPSCRIPT_DECL_FUNCTION) {
+            // Validate function parameter types
+            for (size_t j = 0; j < decl->data.function.params->size; j++) {
+                mtpscript_param_t *param = mtpscript_vector_get(decl->data.function.params, j);
+                mtpscript_error_t *type_error = validate_type(param->type);
+                if (type_error) {
+                    mtpscript_type_env_free(env);
+                    return type_error;
+                }
+            }
+            // Validate return type
+            if (decl->data.function.return_type) {
+                mtpscript_error_t *type_error = validate_type(decl->data.function.return_type);
+                if (type_error) {
+                    mtpscript_type_env_free(env);
+                    return type_error;
+                }
+            }
+        }
     }
+
+    // Second pass: normal type checking
+    for (size_t i = 0; i < program->declarations->size; i++) {
+        mtpscript_error_t *decl_error = typecheck_declaration(mtpscript_vector_get(program->declarations, i), env);
+        if (decl_error) {
+            mtpscript_type_env_free(env);
+            return decl_error;
+        }
+    }
+
     mtpscript_type_env_free(env);
     return NULL;
 }

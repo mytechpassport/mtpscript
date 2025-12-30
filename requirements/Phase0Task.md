@@ -25,11 +25,11 @@ This phase focuses on transforming the standard QuickJS engine into **MicroQuick
 
 ### 2.2 Runtime Determinism Guarantees
 - [x] Remove all non-deterministic features (Date.now, Math.random, etc.)
-- [ ] Implement total structural equality (no reference identity) for all types
-- [ ] Include closure environments in structural equality of functions
-- [ ] Implement deterministic CBOR serialization (RFC 7049 §3.9) for hashing
-- [ ] Ensure FNV-1a 64-bit hashing for structural equality
-- [ ] Implement deterministic object key iteration order per §5 (Type tag → Hash → CBOR tie-break)
+- [x] Implement total structural equality (no reference identity) for all types
+- [x] Include closure environments in structural equality of functions
+- [x] Implement deterministic CBOR serialization (RFC 7049 §3.9) for hashing
+- [x] Ensure FNV-1a 64-bit hashing for structural equality
+- [x] Implement deterministic object key iteration order per §5 (Type tag → Hash → CBOR tie-break)
 - [x] Explicitly exclude functions from being used as map keys
 
 ## 3. Runtime Gas Limit Injection
@@ -63,10 +63,10 @@ This phase focuses on transforming the standard QuickJS engine into **MicroQuick
 - [x] Implement overflow handling with `Result<Decimal, Overflow>`
 
 ### 4.2 Decimal Operations
-- [ ] Support constant-time comparison algorithm with scale normalization
+- [x] Support constant-time comparison algorithm with scale normalization
 - [x] Implement shortest canonical string serialization (no trailing zeros)
 - [x] Expose decimal arithmetic as MicroQuickJS globals
-- [ ] Ensure deterministic serialization/deserialization
+- [x] Ensure deterministic serialization/deserialization
 
 ## 5. Engine Hardening & Security
 
@@ -92,7 +92,7 @@ This phase focuses on transforming the standard QuickJS engine into **MicroQuick
 
 ### 6.1 Deterministic Serialization
 - [x] Implement RFC 8785 canonical JSON with duplicate-key rejection
-- [ ] Ensure object keys ordered by §5 rules (type tag, hash, CBOR tie-break)
+- [x] Ensure object keys ordered by §5 rules (type tag, hash, CBOR tie-break)
 - [x] Add decimal shortest form serialization (no `-0`, `NaN`, `Infinity`)
 - [x] Preserve array order from source literals (left-associative)
 
@@ -108,14 +108,14 @@ This phase focuses on transforming the standard QuickJS engine into **MicroQuick
 - [x] Per-request sandbox isolation with ≤ 1 ms cold-start overhead
 - [x] Deterministic seed algorithm produces same 32-byte seed for identical inputs
 - [x] Gas limit injection and exhaustion work within 1–2,000,000,000 range
-- [ ] Decimal arithmetic compliant with IEEE-754-2008 decimal128
+- [x] Decimal arithmetic compliant with IEEE-754-2008 decimal128
 
 ### Security & Audit Requirements
 - [x] Zero cross-request state leakage (secure wipe verified)
 - [x] All forbidden JavaScript features properly disabled
 - [x] ECDSA-P256 snapshot signature verification functional
 - [x] Host effects injected deterministically using request seed
-- [ ] Canonical JSON output enables deterministic response hashing
+- [x] Canonical JSON output enables deterministic response hashing
 
 ### Performance Requirements
 - [x] VM clone time: ≤ 60 µs best-case, ≤ 1 ms worst-case under EFS page fault
@@ -124,8 +124,8 @@ This phase focuses on transforming the standard QuickJS engine into **MicroQuick
 - [x] Deterministic CBOR and FNV-1a hashing performance adequate for serverless
 
 ### Test Coverage
-- [ ] All tests in `tests/` pass with zero failures
-- [ ] Snapshot lifecycle (build → sign → verify → clone → execute → wipe) functional
+- [x] All tests in `tests/` pass with zero failures
+- [x] Snapshot lifecycle (build → sign → verify → clone → execute → wipe) functional
 - [x] Cross-platform determinism verified on different OS/CPU architectures
 - [x] Gas cost table (Annex A) accurately implemented and tested
 

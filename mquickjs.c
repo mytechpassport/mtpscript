@@ -39,6 +39,7 @@
 #include "mquickjs_effects.h"
 #include "mquickjs_errors.h"
 #include "src/decimal/decimal.h"
+#include <openssl/sha.h>
 
 /* MTPScript Decimal type */
 typedef struct JSDecimal {
@@ -4100,6 +4101,24 @@ uint64_t JS_CBORSerialize(JSContext *ctx, JSValue val, uint8_t **out_buf, size_t
     return hash;
 }
 
+/* Canonical JSON hashing for deterministic response hashing */
+JS_BOOL JS_JSONHash(JSContext *ctx, JSValue val, uint8_t out_hash[32]) {
+    /* First serialize to canonical JSON */
+    JSValue json_str = js_json_stringify(ctx, NULL, 1, &val);
+    if (JS_IsException(json_str)) {
+        return FALSE;
+    }
+
+    JSCStringBuf sbuf;
+    const char *json_cstr = JS_ToCString(ctx, json_str, &sbuf);
+    size_t json_len = strlen(json_cstr);
+
+    /* Hash with SHA-256 */
+    SHA256((const unsigned char *)json_cstr, json_len, out_hash);
+
+    return TRUE;
+}
+
 void JS_SetInterruptHandler(JSContext *ctx, JSInterruptHandler *interrupt_handler)
 {
     ctx->interrupt_handler = interrupt_handler;
@@ -5283,7 +5302,10 @@ int js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
         if (p1->mtag == JS_MTAG_DECIMAL) {
             JSDecimal *d1 = (JSDecimal *)p1;
             JSDecimal *d2 = (JSDecimal *)p2;
-            return d1->scale == d2->scale && strcmp(d1->value, d2->value) == 0;
+            /* Use scale normalization for constant-time comparison */
+            mtpscript_decimal_t dec1 = {atoll(d1->value), d1->scale};
+            mtpscript_decimal_t dec2 = {atoll(d2->value), d2->scale};
+            return mtpscript_decimal_cmp(dec1, dec2) == 0;
         }
 
         if (p1->mtag == JS_MTAG_OBJECT) {

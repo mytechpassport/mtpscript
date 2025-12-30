@@ -50,9 +50,87 @@ mtpscript_string_t *mtpscript_cbor_serialize_string(const char *value);
 mtpscript_string_t *mtpscript_cbor_serialize_bool(bool value);
 mtpscript_string_t *mtpscript_cbor_serialize_null(void);
 
-// FNV-1a 64-bit hashing (for structural equality and maps)
+// First-class JSON ADT with JsonNull constraint (§9)
+typedef enum {
+    MTPSCRIPT_JSON_NULL,    // Only inhabited through parsing, no literals allowed
+    MTPSCRIPT_JSON_BOOL,
+    MTPSCRIPT_JSON_INT,
+    MTPSCRIPT_JSON_STRING,
+    MTPSCRIPT_JSON_ARRAY,
+    MTPSCRIPT_JSON_OBJECT
+} mtpscript_json_kind_t;
+
+typedef struct mtpscript_json_t {
+    mtpscript_json_kind_t kind;
+    union {
+        bool bool_val;
+        int64_t int_val;
+        mtpscript_string_t *string_val;
+        mtpscript_vector_t *array_val;  // vector of mtpscript_json_t*
+        mtpscript_hash_t *object_val;   // hash of string -> mtpscript_json_t*
+    } data;
+} mtpscript_json_t;
+
+// JSON ADT constructors (JsonNull cannot be constructed directly)
+mtpscript_json_t *mtpscript_json_new_bool(bool value);
+mtpscript_json_t *mtpscript_json_new_int(int64_t value);
+mtpscript_json_t *mtpscript_json_new_string(const char *value);
+mtpscript_json_t *mtpscript_json_new_array(void);
+mtpscript_json_t *mtpscript_json_new_object(void);
+
+// JSON ADT accessors
+bool mtpscript_json_is_null(const mtpscript_json_t *json);
+bool mtpscript_json_as_bool(const mtpscript_json_t *json);
+int64_t mtpscript_json_as_int(const mtpscript_json_t *json);
+const char *mtpscript_json_as_string(const mtpscript_json_t *json);
+mtpscript_vector_t *mtpscript_json_as_array(const mtpscript_json_t *json);
+mtpscript_hash_t *mtpscript_json_as_object(const mtpscript_json_t *json);
+
+// JSON ADT mutators
+void mtpscript_json_array_push(mtpscript_json_t *array, mtpscript_json_t *value);
+void mtpscript_json_object_set(mtpscript_json_t *object, const char *key, mtpscript_json_t *value);
+
+// JSON parsing (only place where JsonNull can be created)
+mtpscript_json_t *mtpscript_json_parse(const char *json_str, mtpscript_error_t **error);
+
+// JSON serialization
+mtpscript_string_t *mtpscript_json_serialize(const mtpscript_json_t *json);
+
+// JSON cleanup
+void mtpscript_json_free(mtpscript_json_t *json);
+
+// Hashing and crypto primitives
 uint64_t mtpscript_fnv1a_64(const void *data, size_t length);
 uint64_t mtpscript_fnv1a_64_string(const char *str);
+
+// SHA-256 hash (32 bytes)
+#define MTPSCRIPT_SHA256_DIGEST_SIZE 32
+void mtpscript_sha256(const void *data, size_t length, uint8_t output[MTPSCRIPT_SHA256_DIGEST_SIZE]);
+
+// ECDSA-P256 signature verification
+typedef struct {
+    uint8_t x[32];
+    uint8_t y[32];
+} mtpscript_ecdsa_public_key_t;
+
+bool mtpscript_ecdsa_verify(const void *data, size_t data_len,
+                          const uint8_t signature[64],
+                          const mtpscript_ecdsa_public_key_t *pubkey);
+
+// Deterministic seed generation (§0-b)
+#define MTPSCRIPT_SEED_SIZE 32
+void mtpscript_generate_deterministic_seed(const char *req_id, const char *acc_id,
+                                         const char *version, const uint8_t *snap_hash,
+                                         uint64_t gas_limit, uint8_t seed_out[MTPSCRIPT_SEED_SIZE]);
+
+// Host adapter contract validation (§13.2)
+#define MTPSCRIPT_MAX_GAS_LIMIT 2000000000ULL // 2B gas limit
+mtpscript_error_t *mtpscript_validate_gas_limit(uint64_t gas_limit);
+mtpscript_error_t *mtpscript_inject_gas_limit(const char *js_code, uint64_t gas_limit, mtpscript_string_t **output);
+
+// Memory protection (§22)
+void mtpscript_secure_memory_wipe(void *ptr, size_t size);
+void mtpscript_zero_cross_request_state(void);
 
 // Initialize the standard library in a JS context
 mtpscript_error_t *mtpscript_stdlib_init(void *js_context);

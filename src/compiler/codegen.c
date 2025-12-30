@@ -56,8 +56,10 @@ static void codegen_expression(mtpscript_expression_t *expr, mtpscript_string_t 
             mtpscript_string_append_cstr(out, ")");
             break;
         case MTPSCRIPT_EXPR_AWAIT_EXPR:
-            mtpscript_string_append_cstr(out, "await ");
+            // Desugar await e into Async.await(ph, contId, e) (§7-a)
+            mtpscript_string_append_cstr(out, "Async.await(ph, contId, ");
             codegen_expression(expr->data.await.expression, out);
+            mtpscript_string_append_cstr(out, ")");
             break;
         default: break;
     }

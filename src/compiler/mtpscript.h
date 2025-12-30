@@ -75,9 +75,21 @@ typedef struct {
     size_t capacity;
 } mtpscript_hash_t;
 
+typedef struct {
+    mtpscript_hash_t *hash;
+    size_t index;
+} mtpscript_hash_iterator_t;
+
 mtpscript_hash_t *mtpscript_hash_new(void);
 void mtpscript_hash_free(mtpscript_hash_t *hash);
 void mtpscript_hash_set(mtpscript_hash_t *hash, const char *key, void *value);
 void *mtpscript_hash_get(mtpscript_hash_t *hash, const char *key);
+
+// Hash iteration
+mtpscript_hash_iterator_t *mtpscript_hash_iterator_new(mtpscript_hash_t *hash);
+void mtpscript_hash_iterator_free(mtpscript_hash_iterator_t *iter);
+bool mtpscript_hash_iterator_next(mtpscript_hash_iterator_t *iter);
+const char *mtpscript_hash_iterator_key(mtpscript_hash_iterator_t *iter);
+void *mtpscript_hash_iterator_value(mtpscript_hash_iterator_t *iter);
 
 #endif // MTPSCRIPT_H
