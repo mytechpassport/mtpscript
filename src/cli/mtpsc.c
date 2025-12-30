@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "../compiler/lexer.h"
 #include "../compiler/parser.h"
 #include "../compiler/typechecker.h"
@@ -21,9 +22,11 @@ void usage() {
     printf("Usage: mtpsc <command> [options] <file>\n");
     printf("Commands:\n");
     printf("  compile <file>  Compile MTPScript to JavaScript\n");
+    printf("  run <file>      Compile and run MTPScript (combines compile + execute)\n");
     printf("  check <file>    Type check MTPScript code\n");
     printf("  openapi <file>  Generate OpenAPI spec from MTPScript code\n");
     printf("  snapshot <file> Create a .msqs snapshot\n");
+    printf("  serve <file>    Start local web server daemon\n");
 }
 
 char *read_file(const char *filename) {
@@ -74,6 +77,34 @@ int main(int argc, char **argv) {
         mtpscript_codegen_program(program, &output);
         printf("%s\n", mtpscript_string_cstr(output));
         mtpscript_string_free(output);
+    } else if (strcmp(command, "run") == 0) {
+        mtpscript_string_t *js_output;
+        mtpscript_codegen_program(program, &js_output);
+
+        // Create temporary file
+        char temp_filename[] = "/tmp/mtpscript_run_XXXXXX";
+        int temp_fd = mkstemp(temp_filename);
+        if (temp_fd == -1) {
+            fprintf(stderr, "Error: Could not create temporary file\n");
+            mtpscript_string_free(js_output);
+            return 1;
+        }
+
+        // Write JavaScript to temp file
+        FILE *temp_file = fdopen(temp_fd, "w");
+        fprintf(temp_file, "%s\n", mtpscript_string_cstr(js_output));
+        fclose(temp_file);
+
+        // Execute with mtpjs
+        char cmd[1024];
+        snprintf(cmd, sizeof(cmd), "./mtpjs %s", temp_filename);
+        int result = system(cmd);
+
+        // Clean up temp file
+        unlink(temp_filename);
+        mtpscript_string_free(js_output);
+
+        return result;
     } else if (strcmp(command, "check") == 0) {
         err = mtpscript_typecheck_program(program);
         if (err) {
@@ -106,6 +137,36 @@ int main(int argc, char **argv) {
         }
         mtpscript_bytecode_free(bytecode);
         mtpscript_string_free(js_output);
+    } else if (strcmp(command, "serve") == 0) {
+        // Create snapshot first
+        mtpscript_string_t *js_output;
+        mtpscript_codegen_program(program, &js_output);
+
+        mtpscript_bytecode_t *bytecode;
+        err = mtpscript_bytecode_compile(mtpscript_string_cstr(js_output), filename, &bytecode);
+        if (err) {
+            fprintf(stderr, "Bytecode compilation failed: %s\n", mtpscript_string_cstr(err->message));
+            mtpscript_string_free(js_output);
+            return 1;
+        }
+
+        const char *snapshot_file = "app.msqs";
+        err = mtpscript_snapshot_create((const char *)bytecode->data, "{}", NULL, 0, snapshot_file);
+        if (err) {
+            fprintf(stderr, "Snapshot creation failed: %s\n", mtpscript_string_cstr(err->message));
+            mtpscript_bytecode_free(bytecode);
+            mtpscript_string_free(js_output);
+            return 1;
+        }
+
+        mtpscript_bytecode_free(bytecode);
+        mtpscript_string_free(js_output);
+
+        // TODO: Implement HTTP server that loads snapshot and handles requests
+        // For now, just indicate that the server would start
+        printf("Server snapshot created: %s\n", snapshot_file);
+        printf("HTTP server functionality not yet implemented.\n");
+        printf("Use './mtpjs -b %s' to test the snapshot manually.\n", snapshot_file);
     } else {
         usage();
     }

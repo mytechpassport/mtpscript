@@ -69,18 +69,18 @@ endif
 # when cross compiling from a 64 bit system to a 32 bit system, force
 # a 32 bit output
 ifdef CONFIG_X86_32
-MQJS_BUILD_FLAGS=-m32
+MTPJS_BUILD_FLAGS=-m32
 endif
 ifdef CONFIG_ARM32
-MQJS_BUILD_FLAGS=-m32
+MTPJS_BUILD_FLAGS=-m32
 endif
 
-PROGS=mqjs$(EXE) example$(EXE) mtpsc$(EXE)
+PROGS=mtpjs$(EXE) example$(EXE) mtpsc$(EXE)
 TEST_PROGS=dtoa_test libm_test mtpsc_test
 
 all: $(PROGS)
 
-MQJS_OBJS=mqjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
+MTPJS_OBJS=mtpjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto
 
 MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/cli/mtpsc.c
@@ -89,7 +89,7 @@ MTPSC_OBJS = $(MTPSC_SOURCES:.c=.o)
 MTPSC_TEST_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/test/test.c
 MTPSC_TEST_OBJS = $(MTPSC_TEST_SOURCES:.c=.o)
 
-mqjs$(EXE): $(MQJS_OBJS)
+mtpjs$(EXE): $(MTPJS_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 mtpsc$(EXE): $(MTPSC_OBJS)
@@ -100,16 +100,16 @@ mtpsc_test$(EXE): $(MTPSC_TEST_OBJS)
 
 mquickjs.o: mquickjs_atom.h
 
-mqjs_stdlib: mqjs_stdlib.host.o mquickjs_build.host.o
+mtpjs_stdlib: mtpjs_stdlib.host.o mquickjs_build.host.o
 	$(HOST_CC) $(HOST_LDFLAGS) -o $@ $^
 
-mquickjs_atom.h: mqjs_stdlib
-	./mqjs_stdlib -a $(MQJS_BUILD_FLAGS) > $@
+mquickjs_atom.h: mtpjs_stdlib
+	./mtpjs_stdlib -a $(MTPJS_BUILD_FLAGS) > $@
 
-mqjs_stdlib.h: mqjs_stdlib
-	./mqjs_stdlib $(MQJS_BUILD_FLAGS) > $@
+mtpjs_stdlib.h: mtpjs_stdlib
+	./mtpjs_stdlib $(MTPJS_BUILD_FLAGS) > $@
 
-mqjs.o: mqjs_stdlib.h
+mtpjs.o: mtpjs_stdlib.h
 
 # C API example
 example.o: example_stdlib.h
@@ -121,7 +121,7 @@ example_stdlib: example_stdlib.host.o mquickjs_build.host.o
 	$(HOST_CC) $(HOST_LDFLAGS) -o $@ $^
 
 example_stdlib.h: example_stdlib
-	./example_stdlib $(MQJS_BUILD_FLAGS) > $@
+	./example_stdlib $(MTPJS_BUILD_FLAGS) > $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -129,26 +129,26 @@ example_stdlib.h: example_stdlib
 %.host.o: %.c
 	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
 
-test: mqjs example mtpsc_test
-	./mqjs tests/test_closure.js
-	./mqjs tests/test_language.js
-	./mqjs tests/test_loop.js
-	./mqjs tests/test_builtin.js
+test: mtpjs example mtpsc_test
+	./mtpjs tests/test_closure.js
+	./mtpjs tests/test_language.js
+	./mtpjs tests/test_loop.js
+	./mtpjs tests/test_builtin.js
 # test bytecode generation and loading
-	./mqjs -o test_builtin.bin tests/test_builtin.js
+	./mtpjs -o test_builtin.bin tests/test_builtin.js
 #	@sha256sum -c test_builtin.sha256
-	./mqjs -b test_builtin.bin
+	./mtpjs -b test_builtin.bin
 	./example tests/test_rect.js
 	./mtpsc_test
 
-microbench: mqjs
-	./mqjs tests/microbench.js
+microbench: mtpjs
+	./mtpjs tests/microbench.js
 
-octane: mqjs
-	./mqjs --memory-limit 256M tests/octane/run.js
+octane: mtpjs
+	./mtpjs --memory-limit 256M tests/octane/run.js
 
-size: mqjs
-	size mqjs mqjs.o readline.o cutils.o dtoa.o libm.o mquickjs.o
+size: mtpjs
+	size mtpjs mtpjs.o readline.o cutils.o dtoa.o libm.o mquickjs.o
 
 dtoa_test: tests/dtoa_test.o dtoa.o cutils.o tests/gay-fixed.o tests/gay-precision.o tests/gay-shortest.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
@@ -160,6 +160,6 @@ rempio2_test: tests/rempio2_test.o libm.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 clean:
-	rm -f *.o *.d *~ tests/*.o tests/*.d tests/*~ test_builtin.bin mqjs_stdlib mqjs_stdlib.h mquickjs_build_atoms mquickjs_atom.h mqjs_example example_stdlib example_stdlib.h $(PROGS) $(TEST_PROGS)
+	rm -f *.o *.d *~ tests/*.o tests/*.d tests/*~ test_builtin.bin mtpjs_stdlib mtpjs_stdlib.h mquickjs_build_atoms mquickjs_atom.h mtpjs_example example_stdlib example_stdlib.h $(PROGS) $(TEST_PROGS)
 
 -include $(wildcard *.d)

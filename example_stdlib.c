@@ -33,4 +33,4 @@ static const JSClassDef js_filled_rectangle_class =
 /* include the full standard library too */
 
 #define CONFIG_CLASS_EXAMPLE
-#include "mqjs_stdlib.c"
+#include "mtpjs_stdlib.c"

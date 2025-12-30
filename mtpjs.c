@@ -220,7 +220,7 @@ static void run_timers(JSContext *ctx)
     }
 }
 
-#include "mqjs_stdlib.h"
+#include "mtpjs_stdlib.h"
 
 #define STYLE_DEFAULT    COLOR_BRIGHT_GREEN
 #define STYLE_COMMENT    COLOR_WHITE
@@ -556,7 +556,7 @@ static void repl_run(JSContext *ctx)
     JS_SetInterruptHandler(ctx, js_interrupt_handler);
 
     for(;;) {
-        cmd = readline_tty(&readline_state, "mqjs > ", FALSE);
+        cmd = readline_tty(&readline_state, "mtpjs > ", FALSE);
         if (!cmd)
             break;
         eval_buf(ctx, cmd, "<cmdline>", TRUE, 0);
@@ -567,7 +567,7 @@ static void repl_run(JSContext *ctx)
 static void help(void)
 {
     printf("MicroQuickJS" "\n"
-           "usage: mqjs [options] [file [args]]\n"
+           "usage: mtpjs [options] [file [args]]\n"
            "-h  --help            list options\n"
            "-e  --eval EXPR       evaluate EXPR\n"
            "-i  --interactive     go to interactive mode\n"
