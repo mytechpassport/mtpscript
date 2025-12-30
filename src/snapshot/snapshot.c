@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-mtpscript_error_t *mtpscript_snapshot_create(const char *js_code, const char *metadata, const uint8_t *signature, size_t sig_size, const char *output_file) {
+mtpscript_error_t *mtpscript_snapshot_create(const char *bytecode_data, size_t bytecode_size, const char *metadata, const uint8_t *signature, size_t sig_size, const char *output_file) {
     FILE *f = fopen(output_file, "wb");
     if (!f) {
         mtpscript_error_t *error = MTPSCRIPT_MALLOC(sizeof(mtpscript_error_t));
@@ -22,12 +22,12 @@ mtpscript_error_t *mtpscript_snapshot_create(const char *js_code, const char *me
     memcpy(header.magic, "MSQS", 4);
     header.version = 1;
     header.metadata_size = (uint32_t)strlen(metadata);
-    header.content_size = (uint32_t)strlen(js_code);
+    header.content_size = (uint32_t)bytecode_size;
     header.signature_size = (uint32_t)sig_size;
 
     fwrite(&header, sizeof(header), 1, f);
     fwrite(metadata, 1, header.metadata_size, f);
-    fwrite(js_code, 1, header.content_size, f);
+    fwrite(bytecode_data, 1, header.content_size, f);
     if (signature && sig_size > 0) {
         fwrite(signature, 1, sig_size, f);
     }

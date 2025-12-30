@@ -26,7 +26,7 @@ typedef struct {
     uint8_t *signature;
 } mtpscript_snapshot_t;
 
-mtpscript_error_t *mtpscript_snapshot_create(const char *js_code, const char *metadata, const uint8_t *signature, size_t sig_size, const char *output_file);
+mtpscript_error_t *mtpscript_snapshot_create(const char *bytecode_data, size_t bytecode_size, const char *metadata, const uint8_t *signature, size_t sig_size, const char *output_file);
 mtpscript_error_t *mtpscript_snapshot_load(const char *input_file, mtpscript_snapshot_t **snapshot);
 void mtpscript_snapshot_free(mtpscript_snapshot_t *snapshot);
 

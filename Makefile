@@ -84,10 +84,10 @@ MTPJS_OBJS=mtpjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquick
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto
 
 MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/compiler/module.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/cli/mtpsc.c
-MTPSC_OBJS = $(MTPSC_SOURCES:.c=.o)
+MTPSC_OBJS = $(MTPSC_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
 
 MTPSC_TEST_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c tests/unit/test.c
-MTPSC_TEST_OBJS = $(MTPSC_TEST_SOURCES:.c=.o)
+MTPSC_TEST_OBJS = $(MTPSC_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
 
 mtpjs$(EXE): $(MTPJS_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
@@ -105,7 +105,7 @@ mtpsc_acceptance$(EXE): $(MTPSC_ACCEPTANCE_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 PHASE0_REGRESSION_TEST_SOURCES = tests/unit/phase0_regression_test.c
-PHASE0_REGRESSION_TEST_OBJS = $(PHASE0_REGRESSION_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/mtpscript.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/stdlib/runtime.o
+PHASE0_REGRESSION_TEST_OBJS = $(PHASE0_REGRESSION_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/mtpscript.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/bytecode.o src/stdlib/runtime.o
 
 tests/unit/phase0_regression_test.o: tests/unit/phase0_regression_test.c mtpjs_stdlib.h
 

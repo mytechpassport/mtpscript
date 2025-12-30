@@ -132,27 +132,20 @@ int main(int argc, char **argv) {
         mtpscript_string_t *js_output;
         mtpscript_codegen_program(program, &js_output);
 
-        mtpscript_bytecode_t *bytecode;
-        err = mtpscript_bytecode_compile(mtpscript_string_cstr(js_output), filename, &bytecode);
-        if (err) {
-            fprintf(stderr, "Bytecode compilation failed: %s\n", mtpscript_string_cstr(err->message));
-            return 1;
-        }
-
         const char *output_file = "app.msqs";
 
-        // Generate signature for the bytecode
+        // Generate signature for the JS code
         // TODO: Use actual private key for signing in production
         uint8_t signature[64] = {0}; // Placeholder signature for now
-        // In production: sign bytecode->data with ECDSA private key
+        // In production: sign js_output with ECDSA private key
 
-        err = mtpscript_snapshot_create((const char *)bytecode->data, "{}", signature, sizeof(signature), output_file);
+        // For now, just store the JS code directly (not real bytecode)
+        err = mtpscript_snapshot_create(mtpscript_string_cstr(js_output), strlen(mtpscript_string_cstr(js_output)), "{}", signature, sizeof(signature), output_file);
         if (err) {
             fprintf(stderr, "Snapshot creation failed: %s\n", mtpscript_string_cstr(err->message));
         } else {
             printf("Snapshot created: %s\n", output_file);
         }
-        mtpscript_bytecode_free(bytecode);
         mtpscript_string_free(js_output);
     } else if (strcmp(command, "serve") == 0) {
         // Create snapshot first
@@ -173,7 +166,7 @@ int main(int argc, char **argv) {
         uint8_t signature[64] = {0}; // Placeholder signature
         // In production: sign bytecode->data with ECDSA private key
 
-        err = mtpscript_snapshot_create((const char *)bytecode->data, "{}", signature, sizeof(signature), snapshot_file);
+        err = mtpscript_snapshot_create((const char *)bytecode->data, bytecode->size, "{}", signature, sizeof(signature), snapshot_file);
         if (err) {
             fprintf(stderr, "Snapshot creation failed: %s\n", mtpscript_string_cstr(err->message));
             mtpscript_bytecode_free(bytecode);
