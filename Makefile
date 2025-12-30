@@ -177,5 +177,12 @@ rempio2_test: tests/rempio2_test.o libm.o
 
 clean:
 	rm -f *.o *.d *~ tests/*.o tests/*.d tests/*~ test_builtin.bin mtpjs_stdlib mtpjs_stdlib.h mquickjs_build_atoms mquickjs_atom.h mtpjs_example example_stdlib example_stdlib.h $(PROGS) $(TEST_PROGS)
+	find . -name "*.o" -type f -delete
+	find . -name "*.d" -type f -delete
+
+clean-git:
+	git rm --cached -r --ignore-unmatch .
+	git add .
+	@echo "Run 'git status' to see what files were removed from git tracking"
 
 -include $(wildcard *.d)

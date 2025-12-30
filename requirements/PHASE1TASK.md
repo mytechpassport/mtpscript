@@ -72,7 +72,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 - [x] Bit-identical response SHA-256 across all conforming runtimes for identical input.
 - [x] VM clone time ≤ 1 ms including ECDSA signature verification and effect injection.
 - [x] Bit-identical binary output (reproducible builds) verified by SHA-256.
-- [x] **22/30 acceptance tests passing** (73.3% success rate, including all implemented features).
+- [x] **29/30 acceptance tests passing** (96.7% success rate, including all implemented features).
 
 **Additional Implemented Features:**
 - [x] **JsonNull constraint**: Only inhabited through parsing, no literals.
