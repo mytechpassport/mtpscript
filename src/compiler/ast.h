@@ -1,9 +1,9 @@
 /**
  * MTPScript AST Definitions
- * Based on TECHSPECV5.md §4.2
+ * Specification §4.2
  *
- * Copyright (c) 2024 My Tech Passport Inc.
- * Author: My Tech Passport Inc. and Ryan Wong coded it
+ * Copyright (c) 2025 My Tech Passport Inc.
+ * Author: Ryan Wong
  */
 
 #ifndef MTPSCRIPT_AST_H

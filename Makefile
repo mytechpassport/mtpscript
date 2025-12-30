@@ -76,7 +76,7 @@ MTPJS_BUILD_FLAGS=-m32
 endif
 
 PROGS=mtpjs$(EXE) example$(EXE) mtpsc$(EXE)
-TEST_PROGS=dtoa_test libm_test mtpsc_test
+TEST_PROGS=dtoa_test libm_test mtpsc_test phase0_test mtpsc_acceptance
 
 all: $(PROGS)
 
@@ -97,6 +97,18 @@ mtpsc$(EXE): $(MTPSC_OBJS)
 
 mtpsc_test$(EXE): $(MTPSC_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
+
+MTPSC_ACCEPTANCE_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/test/acceptance_tests.c
+MTPSC_ACCEPTANCE_OBJS = $(MTPSC_ACCEPTANCE_SOURCES:.c=.o)
+
+mtpsc_acceptance$(EXE): $(MTPSC_ACCEPTANCE_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+PHASE0_TEST_SOURCES = src/test/phase0_test.c
+PHASE0_TEST_OBJS = $(PHASE0_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
+
+phase0_test$(EXE): $(PHASE0_TEST_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 mquickjs.o: mquickjs_atom.h
 
@@ -140,6 +152,8 @@ test: mtpjs example mtpsc_test
 	./mtpjs -b test_builtin.bin
 	./example tests/test_rect.js
 	./mtpsc_test
+	./phase0_test
+	./mtpsc_acceptance
 
 microbench: mtpjs
 	./mtpjs tests/microbench.js

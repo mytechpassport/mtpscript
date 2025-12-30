@@ -1,9 +1,9 @@
 /**
  * MTPScript OpenAPI Generator Implementation
- * Based on TECHSPECV5.md §7.0
+ * Specification §7.0
  *
- * Copyright (c) 2024 My Tech Passport Inc.
- * Author: My Tech Passport Inc. and Ryan Wong coded it
+ * Copyright (c) 2025 My Tech Passport Inc.
+ * Author: Ryan Wong
  */
 
 #include "openapi.h"

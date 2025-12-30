@@ -1,9 +1,9 @@
 /**
  * MTPScript CLI Tool (mtpsc)
- * Based on TECHSPECV5.md §13.0
+ * Specification §13.0
  *
- * Copyright (c) 2024 My Tech Passport Inc.
- * Author: My Tech Passport Inc. and Ryan Wong coded it
+ * Copyright (c) 2025 My Tech Passport Inc.
+ * Author: Ryan Wong
  */
 
 #include <stdio.h>

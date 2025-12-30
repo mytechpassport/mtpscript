@@ -1,9 +1,9 @@
 /**
  * MTPScript Core Utilities
- * Based on TECHSPECV5.md
+ * Specification
  *
- * Copyright (c) 2024 My Tech Passport Inc.
- * Author: My Tech Passport Inc. and Ryan Wong coded it
+ * Copyright (c) 2025 My Tech Passport Inc.
+ * Author: Ryan Wong
  */
 
 #ifndef MTPSCRIPT_H
