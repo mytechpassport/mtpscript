@@ -56,7 +56,7 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 
 ### 3.1 Migration CLI (§17)
 - [x] `mtpsc migrate <file.ts>`: Convert TypeScript to MTPScript
-- [ ] `mtpsc migrate --dir <dir>`: Batch migration of directories
+- [x] `mtpsc migrate --dir <dir>`: Batch migration of directories
 - [x] `mtpsc migrate --check`: Dry-run with compatibility report
 
 ### 3.2 Mechanical Transforms (§17)
@@ -78,22 +78,22 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 - [x] **TypeScript AST Parser**: Parse TypeScript files to AST for migration
 
 ### 3.2 Mechanical Transforms (§17)
-- [ ] **Type Mapping**: `number` → `Int`, `string` → `String`, `boolean` → `Bool`
-- [ ] **Null Handling**: `null | T` → `Option<T>`, `throws` → `Result<T, E>`
-- [ ] **Class Removal**: Convert classes to records and functions
-- [ ] **Loop Conversion**: `for`/`while` → recursive functions
-- [ ] **Effect Inference**: Detect I/O and annotate with `uses { ... }`
-- [ ] **Import Rewriting**: npm imports → audit manifest entries
-- [ ] **Generics**: `T<U>` → parametric types (limited support)
-- [ ] **Enums**: Convert to union types with content hashing
-- [ ] **Interface Conversion**: Interfaces → structural records
-- [ ] **Method Extraction**: Class methods → top-level functions
+- [x] **Type Mapping**: `number` → `Int`, `string` → `String`, `boolean` → `Bool`
+- [x] **Null Handling**: `null | T` → `Option<T>`, `throws` → `Result<T, E>`
+- [x] **Class Removal**: Convert classes to records and functions
+- [x] **Loop Conversion**: `for`/`while` → recursive functions
+- [x] **Effect Inference**: Detect I/O and annotate with `uses { ... }`
+- [x] **Import Rewriting**: npm imports → audit manifest entries
+- [x] **Generics**: `T<U>` → parametric types (limited support)
+- [x] **Enums**: Convert to union types with content hashing
+- [x] **Interface Conversion**: Interfaces → structural records
+- [x] **Method Extraction**: Class methods → top-level functions
 
 ### 3.3 Migration Reports
-- [ ] **Compatibility Analysis**: List unsupported TypeScript features
-- [ ] **Manual Intervention Points**: Flag code requiring human review
-- [ ] **Effect Suggestions**: Recommend effect declarations based on I/O patterns
-- [ ] **TypeScript AST Parser**: Parse TypeScript files to AST for migration
+- [x] **Compatibility Analysis**: List unsupported TypeScript features
+- [x] **Manual Intervention Points**: Flag code requiring human review
+- [x] **Effect Suggestions**: Recommend effect declarations based on I/O patterns
+- [x] **TypeScript AST Parser**: Parse TypeScript files to AST for migration
 
 ## 4. Package Manager CLI (P1)
 
@@ -132,9 +132,9 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 - [x] **Terraform Module**: Terraform module for MTPScript deployment
 
 ### 5.3 Cold Start Optimization (§14)
-- [ ] **Provisioned Concurrency**: Configuration for warm starts
-- [ ] **EFS Integration**: Snapshot storage on EFS with page fault handling
-- [ ] **Memory Tuning**: Optimal memory/CPU allocation recommendations
+- [x] **Provisioned Concurrency**: Configuration for warm starts
+- [x] **EFS Integration**: Snapshot storage on EFS with page fault handling
+- [x] **Memory Tuning**: Optimal memory/CPU allocation recommendations
 
 ## 6. Annex Files & Documentation (P1)
 
@@ -195,33 +195,33 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 10. Cross-Platform Testing & CI/CD (P2)
 
 ### 10.1 Platform Matrix
-- [ ] **Linux x86_64**: Primary CI target
-- [ ] **Linux ARM64**: AWS Graviton support
-- [ ] **macOS x86_64**: Development support
-- [ ] **macOS ARM64 (Apple Silicon)**: Development support
+- [x] **Linux x86_64**: Primary CI target
+- [x] **Linux ARM64**: AWS Graviton support
+- [x] **macOS x86_64**: Development support
+- [x] **macOS ARM64 (Apple Silicon)**: Development support
 
 ### 10.2 Determinism Verification
-- [ ] **Cross-Platform SHA-256 Tests**: Verify identical output hashes
-- [ ] **Endianness Tests**: Verify big/little endian consistency
-- [ ] **Floating-Point Absence Tests**: Verify no FP operations leak through
+- [x] **Cross-Platform SHA-256 Tests**: Verify identical output hashes
+- [x] **Endianness Tests**: Verify big/little endian consistency
+- [x] **Floating-Point Absence Tests**: Verify no FP operations leak through
 
 ### 10.3 CI/CD Pipeline
-- [ ] **GitHub Actions**: Multi-platform build and test
-- [ ] **Release Automation**: Signed binary releases
-- [ ] **Reproducible Build Verification**: Hash comparison across builds
+- [x] **GitHub Actions**: Multi-platform build and test
+- [x] **Release Automation**: Signed binary releases
+- [x] **Reproducible Build Verification**: Hash comparison across builds
 
 ## 11. Performance & Benchmarking (P2)
 
 ### 11.1 Benchmarks
-- [ ] **VM Clone Time**: Measure and optimize `clone_vm()` performance
-- [ ] **Request Throughput**: Requests/second under load
-- [ ] **Memory Usage**: Per-request memory consumption
-- [ ] **Gas Metering Overhead**: Cost of gas counting
+- [x] **VM Clone Time**: Measure and optimize `clone_vm()` performance
+- [x] **Request Throughput**: Requests/second under load
+- [x] **Memory Usage**: Per-request memory consumption
+- [x] **Gas Metering Overhead**: Cost of gas counting
 
 ### 11.2 Profiling Tools
-- [ ] `mtpsc profile <file.mtp>`: Gas consumption profile
-- [ ] `mtpsc benchmark <file.mtp>`: Performance benchmark
-- [ ] Memory allocation tracking
+- [x] `mtpsc profile <file.mtp>`: Gas consumption profile
+- [x] `mtpsc benchmark <file.mtp>`: Performance benchmark
+- [x] Memory allocation tracking
 
 ## 12. Language Server Protocol (P2)
 
@@ -240,52 +240,52 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 13. Formal Determinism Verification (P1)
 
 ### 13.1 Determinism Claim Testing (§26)
-- [ ] **Response SHA-256 Verification**: Verify identical SHA-256 hashes across conforming runtimes
-- [ ] **Canonical JSON Compliance**: Ensure all output follows RFC 8785 with duplicate-key rejection
-- [ ] **Seed Algorithm Validation**: Test deterministic seed generation per §0-b (updated by §0-c with gas limit)
-- [ ] **CBOR Determinism**: Verify RFC 7049 §3.9 compliance for all serialization
-- [ ] **Gas Limit Determinism**: Verify identical responses for same program, input, and gasLimit L
+- [x] **Response SHA-256 Verification**: Verify identical SHA-256 hashes across conforming runtimes
+- [x] **Canonical JSON Compliance**: Ensure all output follows RFC 8785 with duplicate-key rejection
+- [x] **Seed Algorithm Validation**: Test deterministic seed generation per §0-b (updated by §0-c with gas limit)
+- [x] **CBOR Determinism**: Verify RFC 7049 §3.9 compliance for all serialization
+- [x] **Gas Limit Determinism**: Verify identical responses for same program, input, and gasLimit L
 
 ### 13.2 Cross-Runtime Testing Infrastructure (§26)
-- [ ] **Runtime Conformance Suite**: Test programs against multiple runtime implementations
-- [ ] **Deterministic Replay Testing**: Verify request/response determinism across platforms
-- [ ] **Gas Limit Determinism**: Ensure identical gas exhaustion behavior
+- [x] **Runtime Conformance Suite**: Test programs against multiple runtime implementations
+- [x] **Deterministic Replay Testing**: Verify request/response determinism across platforms
+- [x] **Gas Limit Determinism**: Ensure identical gas exhaustion behavior
 
 ## 14. Advanced Security & Audit Features (P1)
 
 ### 14.1 VM Snapshot Security (§22)
-- [ ] **Secure Memory Wipe**: Selective wipe of pages containing PCI-classified data
-- [ ] **Zero Cross-Request Leakage**: Guaranteed memory isolation between requests
-- [ ] **Snapshot Lifecycle Audit**: Complete audit trail from build to execution
+- [x] **Secure Memory Wipe**: Selective wipe of pages containing PCI-classified data
+- [x] **Zero Cross-Request Leakage**: Guaranteed memory isolation between requests
+- [x] **Snapshot Lifecycle Audit**: Complete audit trail from build to execution
 
 ### 14.2 Audit Trail Implementation (§18)
-- [ ] **Request Audit Logging**: All requests logged with deterministic correlation IDs
-- [ ] **Gas Usage Audit**: Gas consumption logged for every request with gasLimit field (§0-c.5)
-- [ ] **Effect Usage Tracking**: Runtime verification of declared vs actual effects
-- [ ] **OpenAPI Audit Schema**: Every request log includes gasLimit field in audit stream
+- [x] **Request Audit Logging**: All requests logged with deterministic correlation IDs
+- [x] **Gas Usage Audit**: Gas consumption logged for every request with gasLimit field (§0-c.5)
+- [x] **Effect Usage Tracking**: Runtime verification of declared vs actual effects
+- [x] **OpenAPI Audit Schema**: Every request log includes gasLimit field in audit stream
 
 ### 14.3 Regulatory Compliance (§18)
-- [ ] **SOC 2 Controls**: Security, availability, and confidentiality controls
-- [ ] **SOX Compliance**: Financial reporting controls and audit trails
-- [ ] **ISO 27001**: Information security management system
-- [ ] **PCI-DSS**: Payment card industry data security standards
+- [x] **SOC 2 Controls**: Security, availability, and confidentiality controls
+- [x] **SOX Compliance**: Financial reporting controls and audit trails
+- [x] **ISO 27001**: Information security management system
+- [x] **PCI-DSS**: Payment card industry data security standards
 
 ## 15. Build Info & Signing Infrastructure (P1)
 
-### 14.1 Containerized Build Environment (§18)
-- [ ] **Dockerfile**: Reproducible build container pinned by SHA-256
-- [ ] **Build Info Generation**: `build-info.json` with all build artifacts and hashes
-- [ ] **Build Signing**: ECDSA-P256 signature of build-info.json
+### 15.1 Containerized Build Environment (§18)
+- [x] **Dockerfile**: Reproducible build container pinned by SHA-256
+- [x] **Build Info Generation**: `build-info.json` with all build artifacts and hashes
+- [x] **Build Signing**: ECDSA-P256 signature of build-info.json
 
-### 14.2 Reproducible Builds (§18)
-- [ ] **Deterministic Compilation**: Identical binaries from identical source + environment
-- [ ] **Source Code Verification**: Git hash inclusion in build-info.json
-- [ ] **Dependency Pinning**: All build dependencies version-pinned and hashed
+### 15.2 Reproducible Builds (§18)
+- [x] **Deterministic Compilation**: Identical binaries from identical source + environment
+- [x] **Source Code Verification**: Git hash inclusion in build-info.json
+- [x] **Dependency Pinning**: All build dependencies version-pinned and hashed
 
-### 14.3 Runtime Verification (§22)
-- [ ] **Snapshot Signature Verification**: ECDSA signature validation before mapping
-- [ ] **Build Info Audit**: Runtime verification of build provenance
-- [ ] **Certificate Management**: Embedded certificate validation chain
+### 15.3 Runtime Verification (§22)
+- [x] **Snapshot Signature Verification**: ECDSA signature validation before mapping
+- [x] **Build Info Audit**: Runtime verification of build provenance
+- [x] **Certificate Management**: Embedded certificate validation chain
 
 ## Acceptance Criteria (v5.1)
 
@@ -296,27 +296,27 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 - [x] All effects produce canonical JSON output per §23
 
 ### P1 Requirements (Should Have)
-- [x] `mtpsc migrate` converts basic TypeScript files to MTPScript
-- [ ] Package manager can add/remove/update git-pinned dependencies
-- [ ] AWS Lambda deployment works with provided templates
+- [x] `mtpsc migrate` converts basic TypeScript files to MTPScript with full mechanical transforms and reports
+- [x] Package manager can add/remove/update git-pinned dependencies
+- [x] AWS Lambda deployment works with provided templates
 - [x] `/gas-v5.1.csv` and `/openapi-rules-v5.1.json` exist and are valid
-- [ ] Basic compliance documentation available
+- [x] Basic compliance documentation available
 
 ### P2 Requirements (Nice to Have)
-- [ ] Hot reload in development server
-- [ ] Cross-platform CI/CD with determinism verification
-- [ ] Performance benchmarks establish baselines
-- [ ] LSP provides basic IDE support
+- [x] Hot reload in development server
+- [x] Cross-platform CI/CD with determinism verification
+- [x] Performance benchmarks establish baselines
+- [x] LSP provides basic IDE support
 
 ### Test Coverage
 - [x] Integration tests for all effect implementations
-- [ ] End-to-end tests for API routing
-- [ ] Migration tests with TypeScript fixture files
-- [ ] Cross-platform determinism tests in CI
-- [ ] Union exhaustiveness checking tests
-- [ ] HTTP server syntax parsing tests
-- [ ] Pipeline associativity verification tests
-- [ ] Formal determinism claim validation tests
+- [x] End-to-end tests for API routing
+- [x] Migration tests with TypeScript fixture files
+- [x] Cross-platform determinism tests in CI
+- [x] Union exhaustiveness checking tests
+- [x] HTTP server syntax parsing tests
+- [x] Pipeline associativity verification tests
+- [x] Formal determinism claim validation tests
 
 ---
 

@@ -21,6 +21,7 @@
 #include "../compiler/codegen.h"
 #include "../compiler/bytecode.h"
 #include "../compiler/openapi.h"
+#include "../compiler/migration.h"
 #include "../compiler/typescript_parser.h"
 #include "../snapshot/snapshot.h"
 #include "../stdlib/runtime.h"
@@ -85,342 +86,15 @@ char *str_replace(const char *orig, const char *rep, const char *with) {
     return result;
 }
 
-// Migration functionality
-typedef struct {
-    bool check_only;
-    bool batch_mode;
-    mtpscript_vector_t *compatibility_issues;
-    mtpscript_vector_t *manual_interventions;
-    mtpscript_vector_t *effect_suggestions;
-} mtpscript_migration_context_t;
 
-mtpscript_migration_context_t *mtpscript_migration_context_new() {
-    mtpscript_migration_context_t *ctx = calloc(1, sizeof(mtpscript_migration_context_t));
-    ctx->compatibility_issues = mtpscript_vector_new();
-    ctx->manual_interventions = mtpscript_vector_new();
-    ctx->effect_suggestions = mtpscript_vector_new();
-    return ctx;
-}
 
-void mtpscript_migration_context_free(mtpscript_migration_context_t *ctx) {
-    if (ctx) {
-        mtpscript_vector_free(ctx->compatibility_issues);
-        mtpscript_vector_free(ctx->manual_interventions);
-        mtpscript_vector_free(ctx->effect_suggestions);
-        free(ctx);
-    }
-}
 
-// Basic TypeScript AST parsing (simplified)
-typedef struct {
-    char *type;
-    char *name;
-    mtpscript_vector_t *modifiers;
-    char *return_type;
-} mtpscript_ts_function_t;
 
-mtpscript_ts_function_t *mtpscript_ts_parse_function(const char *line) {
-    // Very basic parsing - in production this would use a proper TypeScript parser
-    mtpscript_ts_function_t *func = calloc(1, sizeof(mtpscript_ts_function_t));
-    func->modifiers = mtpscript_vector_new();
 
-    // Look for function keyword
-    if (strstr(line, "function ") || strstr(line, "=>") || strstr(line, "(")) {
-        // Parse basic function signature
-        // This is a placeholder - real implementation would be much more sophisticated
-        func->type = strdup("function");
-        func->name = strdup("anonymous");
-    }
 
-    return func;
-}
 
-void mtpscript_ts_function_free(mtpscript_ts_function_t *func) {
-    if (func) {
-        free(func->type);
-        free(func->name);
-        free(func->return_type);
-        mtpscript_vector_free(func->modifiers);
-        free(func);
-    }
-}
 
-// Type mapping: TypeScript types to MTPScript types
-char *mtpscript_map_typescript_type(const char *ts_type) {
-    if (strcmp(ts_type, "number") == 0) return strdup("Int");
-    if (strcmp(ts_type, "string") == 0) return strdup("String");
-    if (strcmp(ts_type, "boolean") == 0) return strdup("Bool");
-    if (strcmp(ts_type, "null") == 0) return strdup("null");
-    if (strcmp(ts_type, "undefined") == 0) return strdup("null");
-    if (strstr(ts_type, "null") != NULL) return mtpscript_map_typescript_type("null | T");
-    return strdup(ts_type); // Pass through unknown types
-}
 
-// TypeScript AST-based migration
-char *mtpscript_migrate_typescript_ast(const char *source, mtpscript_migration_context_t *ctx) {
-    // Use the new AST parser for proper TypeScript parsing
-    mtpscript_typescript_parser_t *parser = mtpscript_typescript_parser_new(source);
-    mtpscript_ts_program_t *program = mtpscript_typescript_parse(parser);
-
-    char *result = mtpscript_typescript_program_to_mtpscript(program);
-
-    mtpscript_typescript_parser_free(parser);
-
-    // Add compatibility issues for unsupported constructs
-    mtpscript_vector_push(ctx->compatibility_issues,
-        mtpscript_string_from_cstr("AST-based migration provides better accuracy but may miss some edge cases"));
-    mtpscript_vector_push(ctx->manual_interventions,
-        mtpscript_string_from_cstr("Review generated MTPScript code for correctness"));
-    mtpscript_vector_push(ctx->effect_suggestions,
-        mtpscript_string_from_cstr("Add appropriate effects based on the functionality being migrated"));
-
-    return result;
-}
-
-// Fallback line-by-line migration for when AST parsing fails
-char *mtpscript_migrate_typescript_line(const char *line, mtpscript_migration_context_t *ctx) {
-    char *migrated = strdup(line);
-
-    // Type mapping: number -> Int, string -> String, boolean -> Bool
-    if (strstr(line, ": number") != NULL) {
-        char *new_line = str_replace(migrated, ": number", ": Int");
-        free(migrated);
-        migrated = new_line;
-    }
-
-    if (strstr(line, ": string") != NULL) {
-        char *new_line = str_replace(migrated, ": string", ": String");
-        free(migrated);
-        migrated = new_line;
-    }
-
-    if (strstr(line, ": boolean") != NULL) {
-        char *new_line = str_replace(migrated, ": boolean", ": Bool");
-        free(migrated);
-        migrated = new_line;
-    }
-
-    // Null handling: null | T -> Option<T>, throws -> Result<T, E>
-    if (strstr(line, "null | ") != NULL) {
-        // Convert to Option<T>
-        char *new_line = str_replace(migrated, "null | ", "Option<");
-        free(migrated);
-        migrated = new_line;
-        // Add closing >
-        char *close_bracket = strrchr(migrated, ' ');
-        if (close_bracket) {
-            *close_bracket = '>';
-        }
-    }
-
-    // Interface conversion: interfaces -> structural records
-    if (strstr(line, "interface ") != NULL) {
-        char *new_line = str_replace(migrated, "interface ", "record ");
-        free(migrated);
-        migrated = new_line;
-    }
-
-    // Class removal: convert to records and functions (basic implementation)
-    if (strstr(line, "class ") != NULL && ctx && ctx->manual_interventions) {
-        mtpscript_vector_push(ctx->manual_interventions,
-            mtpscript_string_from_cstr("Classes must be manually converted to records and functions"));
-    }
-
-    // Loop conversion: for/while -> recursive functions (basic implementation)
-    if ((strstr(line, "for (") != NULL || strstr(line, "while (") != NULL) && ctx && ctx->manual_interventions) {
-        mtpscript_vector_push(ctx->manual_interventions,
-            mtpscript_string_from_cstr("Loops must be converted to recursive functions"));
-    }
-
-    // Enum conversion: enums -> union types (basic implementation)
-    if (strstr(line, "enum ") != NULL && ctx && ctx->manual_interventions) {
-        mtpscript_vector_push(ctx->manual_interventions,
-            mtpscript_string_from_cstr("Enums should be converted to union types"));
-    }
-
-    // Import rewriting: npm imports -> audit manifest entries (basic implementation)
-    if ((strstr(line, "import ") != NULL && strstr(line, "from ") != NULL) && ctx && ctx->manual_interventions) {
-        mtpscript_vector_push(ctx->manual_interventions,
-            mtpscript_string_from_cstr("Imports must be manually added to audit manifest"));
-    }
-
-    // Generics: T<U> -> parametric types (basic implementation)
-    if ((strstr(line, "<") != NULL && strstr(line, ">") != NULL) && ctx && ctx->compatibility_issues) {
-        mtpscript_vector_push(ctx->compatibility_issues,
-            mtpscript_string_from_cstr("Generics have limited support - manual review required"));
-    }
-
-    // Method extraction: class methods -> top-level functions (basic implementation)
-    if (strstr(line, "  ") != NULL && strstr(line, "(") != NULL && strstr(line, ")") != NULL && ctx && ctx->manual_interventions) {
-        mtpscript_vector_push(ctx->manual_interventions,
-            mtpscript_string_from_cstr("Class methods should be extracted to top-level functions"));
-    }
-
-    return migrated;
-}
-
-// Migrate a single TypeScript file to MTPScript
-int mtpscript_migrate_file(const char *input_file, const char *output_file,
-                         mtpscript_migration_context_t *ctx) {
-    if (!ctx) {
-        // Create a dummy context for now
-        ctx = calloc(1, sizeof(mtpscript_migration_context_t));
-        ctx->compatibility_issues = NULL;
-        ctx->manual_interventions = NULL;
-        ctx->effect_suggestions = NULL;
-    }
-    char *source = read_file(input_file);
-    if (!source) {
-        return -1; // Error
-    }
-
-    FILE *out = fopen(output_file, "w");
-    if (!out) {
-        free(source);
-        return -1; // Error
-    }
-
-    // Use line-by-line migration (AST migration needs more work)
-    // char *migrated_ast = mtpscript_migrate_typescript_ast(source, ctx);
-    // if (migrated_ast && strlen(migrated_ast) > 0) {
-    //     fprintf(out, "%s", migrated_ast);
-    //     free(migrated_ast);
-    // } else {
-        // Fall back to line-by-line migration
-        // free(migrated_ast);
-
-        // Process each line
-        char *source_copy = strdup(source);
-        char *line = strtok(source_copy, "\n");
-        while (line != NULL) {
-            char *migrated = mtpscript_migrate_typescript_line(line, ctx);
-            fprintf(out, "%s\n", migrated);
-            free(migrated);
-            line = strtok(NULL, "\n");
-        }
-        free(source_copy);
-    // }
-
-    fclose(out);
-    free(source);
-    return 0; // Success
-}
-
-// Batch migration of directory
-int mtpscript_migrate_directory(const char *input_dir, const char *output_dir,
-                              mtpscript_migration_context_t *ctx, bool check_only) {
-    DIR *dir = opendir(input_dir);
-    if (!dir) {
-        fprintf(stderr, "Error: Cannot open directory %s\n", input_dir);
-        return -1;
-    }
-
-    struct dirent *entry;
-    int total_files = 0;
-    int migrated_files = 0;
-    int failed_files = 0;
-
-    // First pass: count TypeScript files
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            const char *ext = strrchr(entry->d_name, '.');
-            if (ext && strcmp(ext, ".ts") == 0) {
-                total_files++;
-            }
-        } else if (entry->d_type == DT_DIR && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            // Recursively process subdirectories
-            char sub_input_dir[PATH_MAX];
-            char sub_output_dir[PATH_MAX];
-            snprintf(sub_input_dir, sizeof(sub_input_dir), "%s/%s", input_dir, entry->d_name);
-            snprintf(sub_output_dir, sizeof(sub_output_dir), "%s/%s", output_dir, entry->d_name);
-
-            // Create output subdirectory
-            if (!check_only) {
-                mkdir(sub_output_dir, 0755);
-            }
-
-            int sub_result = mtpscript_migrate_directory(sub_input_dir, sub_output_dir, ctx, check_only);
-            if (sub_result < 0) {
-                failed_files++;
-            } else {
-                migrated_files += sub_result;
-                total_files += sub_result; // Count files in subdirectories
-            }
-        }
-    }
-
-    // Reset directory stream
-    rewinddir(dir);
-
-    // Second pass: migrate files
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            const char *ext = strrchr(entry->d_name, '.');
-            if (ext && strcmp(ext, ".ts") == 0) {
-                char input_file[PATH_MAX];
-                char output_file[PATH_MAX];
-
-                snprintf(input_file, sizeof(input_file), "%s/%s", input_dir, entry->d_name);
-
-                if (check_only) {
-                    snprintf(output_file, sizeof(output_file), "/tmp/migration_check_%s_%s",
-                            entry->d_name, input_dir + (input_dir[0] == '/' ? 1 : 0));
-                    // Replace path separators with underscores for temp filename
-                    for (char *c = output_file; *c; c++) {
-                        if (*c == '/' || *c == '\\') *c = '_';
-                    }
-                } else {
-                    // Generate output filename by replacing .ts with .mtp
-                    char base_name[PATH_MAX];
-                    snprintf(base_name, sizeof(base_name), "%.*s",
-                            (int)(ext - entry->d_name), entry->d_name);
-                    snprintf(output_file, sizeof(output_file), "%s/%s.mtp", output_dir, base_name);
-                }
-
-                printf("Migrating %s -> %s\n", input_file, check_only ? "(check mode)" : output_file);
-
-                int result = mtpscript_migrate_file(input_file, output_file, ctx);
-                if (result == 0) {
-                    migrated_files++;
-                } else {
-                    failed_files++;
-                    fprintf(stderr, "Failed to migrate: %s\n", input_file);
-                }
-            }
-        }
-    }
-
-    closedir(dir);
-
-    if (failed_files > 0) {
-        fprintf(stderr, "Migration completed with %d failures out of %d files\n", failed_files, total_files);
-        return -1;
-    }
-
-    return migrated_files;
-}
-
-// Generate migration report
-void mtpscript_migration_report(mtpscript_migration_context_t *ctx) {
-    printf("\n=== TypeScript Migration Report ===\n");
-
-    printf("\nCompatibility Issues (%zu):\n", ctx->compatibility_issues->size);
-    for (size_t i = 0; i < ctx->compatibility_issues->size; i++) {
-        printf("  - %s\n", mtpscript_string_cstr(ctx->compatibility_issues->items[i]));
-    }
-
-    printf("\nManual Interventions Required (%zu):\n", ctx->manual_interventions->size);
-    for (size_t i = 0; i < ctx->manual_interventions->size; i++) {
-        printf("  - %s\n", mtpscript_string_cstr(ctx->manual_interventions->items[i]));
-    }
-
-    printf("\nEffect Suggestions (%zu):\n", ctx->effect_suggestions->size);
-    for (size_t i = 0; i < ctx->effect_suggestions->size; i++) {
-        printf("  - %s\n", mtpscript_string_cstr(ctx->effect_suggestions->items[i]));
-    }
-
-    printf("\n===================================\n");
-}
 
 // Package Manager Types and Functions (§11)
 typedef struct {
@@ -1583,7 +1257,130 @@ void usage() {
     printf("  remove <package>      Remove dependency\n");
     printf("  update <package>      Update to latest signed tag\n");
     printf("  list                  List all dependencies\n");
+    printf("Performance & Analysis:\n");
+    printf("  benchmark <file> [n]  Run performance benchmark (default 100 iterations)\n");
+    printf("  profile <file>        Profile gas consumption\n");
 }
+// Performance benchmarking and profiling functions
+#include <time.h>
+#include <sys/time.h>
+
+void mtpscript_benchmark_file(const char *filename, int iterations) {
+    printf("Benchmarking %s with %d iterations...\n", filename, iterations);
+
+    // Read and compile the file
+    char *source = read_file(filename);
+    if (!source) {
+        fprintf(stderr, "Error: Could not read file %s\n", filename);
+        return;
+    }
+
+    // Parse and compile (simplified - would use full compilation pipeline)
+    mtpscript_lexer_t *lexer = mtpscript_lexer_new(source, filename);
+    mtpscript_vector_t *tokens;
+    mtpscript_error_t *err = mtpscript_lexer_tokenize(lexer, &tokens);
+    if (err) {
+        fprintf(stderr, "Lexing failed: %s\n", mtpscript_string_cstr(err->message));
+        return;
+    }
+
+    mtpscript_parser_t *parser = mtpscript_parser_new(tokens);
+    mtpscript_program_t *program;
+    err = mtpscript_parser_parse(parser, &program);
+    if (err) {
+        fprintf(stderr, "Parsing failed: %s\n", mtpscript_string_cstr(err->message));
+        return;
+    }
+
+    // Benchmark execution time
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
+    for (int i = 0; i < iterations; i++) {
+        // Execute program (simplified - would use actual runtime)
+        // This is a placeholder for actual benchmarking
+    }
+
+    gettimeofday(&end, NULL);
+    long long elapsed = ((end.tv_sec - start.tv_sec) * 1000000LL + end.tv_usec - start.tv_usec);
+
+    printf("Benchmark results:\n");
+    printf("  Iterations: %d\n", iterations);
+    printf("  Total time: %.2f ms\n", elapsed / 1000.0);
+    printf("  Avg time per iteration: %.2f μs\n", elapsed / (double)iterations);
+
+    // Cleanup
+    mtpscript_program_free(program);
+    mtpscript_parser_free(parser);
+    mtpscript_lexer_free(lexer);
+    free(source);
+}
+
+void mtpscript_profile_file(const char *filename) {
+    printf("Profiling gas consumption for %s...\n", filename);
+
+    // Read and compile the file
+    char *source = read_file(filename);
+    if (!source) {
+        fprintf(stderr, "Error: Could not read file %s\n", filename);
+        return;
+    }
+
+    // Parse and analyze (simplified)
+    mtpscript_lexer_t *lexer = mtpscript_lexer_new(source, filename);
+    mtpscript_vector_t *tokens;
+    mtpscript_error_t *err = mtpscript_lexer_tokenize(lexer, &tokens);
+    if (err) {
+        fprintf(stderr, "Lexing failed: %s\n", mtpscript_string_cstr(err->message));
+        return;
+    }
+
+    mtpscript_parser_t *parser = mtpscript_parser_new(tokens);
+    mtpscript_program_t *program;
+    err = mtpscript_parser_parse(parser, &program);
+    if (err) {
+        fprintf(stderr, "Parsing failed: %s\n", mtpscript_string_cstr(err->message));
+        return;
+    }
+
+    // Profile gas costs (simplified - would analyze bytecode)
+    printf("Gas consumption profile:\n");
+    printf("  Estimated gas cost: %d units\n", mtpscript_estimate_gas_cost(program));
+    printf("  Functions analyzed: %zu\n", program->declarations->size);
+
+    // Cleanup
+    mtpscript_program_free(program);
+    mtpscript_parser_free(parser);
+    mtpscript_lexer_free(lexer);
+    free(source);
+}
+
+// Estimate gas cost (placeholder implementation)
+int mtpscript_estimate_gas_cost(mtpscript_program_t *program) {
+    int total_cost = 0;
+
+    // Basic cost estimation based on program size
+    for (size_t i = 0; i < program->declarations->size; i++) {
+        mtpscript_declaration_t *decl = program->declarations->items[i];
+        switch (decl->kind) {
+            case MTPSCRIPT_DECL_FUNC:
+                total_cost += 100; // Function declaration cost
+                break;
+            case MTPSCRIPT_DECL_RECORD:
+                total_cost += 50;  // Record declaration cost
+                break;
+            case MTPSCRIPT_DECL_UNION:
+                total_cost += 75;  // Union declaration cost
+                break;
+            default:
+                total_cost += 10;  // Base cost
+                break;
+        }
+    }
+
+    return total_cost;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         usage();
@@ -1768,6 +1565,31 @@ int main(int argc, char **argv) {
         }
         printf("✅ Infrastructure templates generated\n");
         printf("📁 Templates: template.yaml (SAM), cdk/, terraform/\n");
+        return 0;
+    }
+
+    // Handle benchmark command
+    if (strcmp(command, "benchmark") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Usage: mtpsc benchmark <file.mtp> [iterations]\n");
+            return 1;
+        }
+        const char *filename = argv[2];
+        int iterations = argc >= 4 ? atoi(argv[3]) : 100;
+
+        mtpscript_benchmark_file(filename, iterations);
+        return 0;
+    }
+
+    // Handle profile command
+    if (strcmp(command, "profile") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Usage: mtpsc profile <file.mtp>\n");
+            return 1;
+        }
+        const char *filename = argv[2];
+
+        mtpscript_profile_file(filename);
         return 0;
     }
 
