@@ -11,3 +11,4 @@
 **/*.msqs.sig.priv.pem
 **/*.msqs.sig.pub.pem.sig
 **/*.msqs.sig.priv.pem.sig
+tests/executables/*
