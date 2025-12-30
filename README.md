@@ -504,51 +504,185 @@ MTPScript is designed to be familiar to JavaScript developers while being more r
 
 ### Functions
 
-| JavaScript | MTPScript |
-|------------|-----------|
-| ```javascript<br>function add(x, y) {<br>  return x + y;<br>}<br><br>const multiply = (x, y) => x * y;<br>``` | ```mtp<br>fn add(x: Int, y: Int) -> Int {<br>    return x + y;<br>}<br><br>fn multiply(x: Int, y: Int) -> Int {<br>    return x * y;<br>}<br>``` |
+**JavaScript:**
+```javascript
+function add(x, y) {
+  return x + y;
+}
+
+const multiply = (x, y) => x * y;
+```
+
+**MTPScript:**
+```
+fn add(x: Int, y: Int) -> Int {
+    return x + y;
+}
+
+fn multiply(x: Int, y: Int) -> Int {
+    return x * y;
+}
+```
 
 ### Variables and Types
 
-| JavaScript | MTPScript |
-|------------|-----------|
-| ```javascript<br>let x = 42;<br>const name = "John";<br>var flag = true;<br>``` | ```mtp<br>let x = 42;  // Inferred as Int<br>let name: String = "John";<br>let flag: Bool = true;<br>``` |
+**JavaScript:**
+```javascript
+let x = 42;
+const name = "John";
+var flag = true;
+```
+
+**MTPScript:**
+```
+let x = 42;  // Inferred as Int
+let name: String = "John";
+let flag: Bool = true;
+```
 
 ### Objects and Data Structures
 
-| JavaScript | MTPScript |
-|------------|-----------|
-| ```javascript<br>const user = {<br>  name: "John",<br>  age: 30<br>};<br><br>const users = [<br>  user1,<br>  user2<br>];<br>``` | ```mtp<br>let user = {<br>    name: "John",<br>    age: 30<br>};<br><br>let users: [{ name: String, age: Int }] = [<br>    user1,<br>    user2<br>];<br>``` |
+**JavaScript:**
+```javascript
+const user = {
+  name: "John",
+  age: 30
+};
+
+const users = [
+  user1,
+  user2
+];
+```
+
+**MTPScript:**
+```
+let user = {
+    name: "John",
+    age: 30
+};
+
+let users: [{ name: String, age: Int }] = [
+    user1,
+    user2
+];
+```
 
 ### Control Flow
 
-| JavaScript | MTPScript |
-|------------|-----------|
-| ```javascript<br>if (condition) {<br>  doSomething();<br>} else {<br>  doOther();<br>}<br><br>for (let i = 0; i < 10; i++) {<br>  console.log(i);<br>}<br>``` | ```mtp<br>let result = if condition {<br>    doSomething()<br>} else {<br>    doOther()<br>};<br><br>// No loops - use recursion or higher-order functions<br>``` |
+**JavaScript:**
+```javascript
+if (condition) {
+  doSomething();
+} else {
+  doOther();
+}
+
+for (let i = 0; i < 10; i++) {
+  console.log(i);
+}
+```
+
+**MTPScript:**
+```
+let result = if condition {
+    doSomething()
+} else {
+    doOther()
+};
+
+// No loops - use recursion or higher-order functions
+```
 
 ### Error Handling
 
-| JavaScript | MTPScript |
-|------------|-----------|
-| ```javascript<br>try {<br>  riskyOperation();<br>} catch (error) {<br>  console.error(error);<br>}<br><br>throw new Error("Failed");<br>``` | ```mtp<br>let result = match riskyOperation() {<br>    Ok(data) => process(data),<br>    Err(error) => handleError(error)<br>};<br><br>// Errors are values, not exceptions<br>return Err("Failed");<br>``` |
+**JavaScript:**
+```javascript
+try {
+  riskyOperation();
+} catch (error) {
+  console.error(error);
+}
+
+throw new Error("Failed");
+```
+
+**MTPScript:**
+```
+let result = match riskyOperation() {
+    Ok(data) => process(data),
+    Err(error) => handleError(error)
+};
+
+// Errors are values, not exceptions
+return Err("Failed");
+```
 
 ### Async/Await
 
-| JavaScript | MTPScript |
-|------------|-----------|
-| ```javascript<br>async function fetchData() {<br>  const response = await fetch(url);<br>  return response.json();<br>}<br>``` | ```mtp<br>fn fetchData() -> Result<Json, String> {<br>    let response = await HttpOut.get(url);<br>    return response.body;<br>}<br>``` |
+**JavaScript:**
+```javascript
+async function fetchData() {
+  const response = await fetch(url);
+  return response.json();
+}
+```
+
+**MTPScript:**
+```
+fn fetchData() -> Result<Json, String> {
+    let response = await HttpOut.get(url);
+    return response.body;
+}
+```
 
 ### Classes and OOP
 
-| JavaScript | MTPScript |
-|------------|-----------|
-| ```javascript<br>class User {<br>  constructor(name) {<br>    this.name = name;<br>  }<br>  <br>  greet() {<br>    return `Hello, ${this.name}`;<br>  }<br>}<br>``` | ```mtp<br>// No classes - use functions and data structures<br>fn createUser(name: String) -> User {<br>    return { name: name };<br>}<br><br>fn greet(user: User) -> String {<br>    return "Hello, " + user.name;<br>}<br>``` |
+**JavaScript:**
+```javascript
+class User {
+  constructor(name) {
+    this.name = name;
+  }
+
+  greet() {
+    return `Hello, ${this.name}`;
+  }
+}
+```
+
+**MTPScript:**
+```
+// No classes - use functions and data structures
+fn createUser(name: String) -> User {
+    return { name: name };
+}
+
+fn greet(user: User) -> String {
+    return "Hello, " + user.name;
+}
+```
 
 ### Modules
 
-| JavaScript | MTPScript |
-|------------|-----------|
-| ```javascript<br>// ES6 modules<br>import { func } from 'module';<br>export const value = 42;<br><br>// CommonJS<br>const mod = require('module');<br>``` | ```mtp<br>// Git-hash pinned imports<br>import { func } from "module@1.2.3";<br>uses "module@1.2.3";<br><br>// No runtime require()<br>``` |
+**JavaScript:**
+```javascript
+// ES6 modules
+import { func } from 'module';
+export const value = 42;
+
+// CommonJS
+const mod = require('module');
+```
+
+**MTPScript:**
+```
+// Git-hash pinned imports
+import { func } from "module@1.2.3";
+uses "module@1.2.3";
+
+// No runtime require()
+```
 
 ### Prohibited JavaScript Features
 
