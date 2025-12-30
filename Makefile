@@ -27,8 +27,8 @@ endif
 
 HOST_CC=gcc
 CC=$(CROSS_PREFIX)gcc
-CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include
-HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math
+CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include -Isrc/compiler -Isrc/decimal -Isrc/snapshot -Isrc/stdlib -Isrc/effects -Isrc/host
+HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -Isrc/compiler
 ifdef CONFIG_WERROR
 CFLAGS+=-Werror
 HOST_CFLAGS+=-Werror
@@ -75,16 +75,28 @@ ifdef CONFIG_ARM32
 MQJS_BUILD_FLAGS=-m32
 endif
 
-PROGS=mqjs$(EXE) example$(EXE)
-TEST_PROGS=dtoa_test libm_test
+PROGS=mqjs$(EXE) example$(EXE) mtpsc$(EXE)
+TEST_PROGS=dtoa_test libm_test mtpsc_test
 
 all: $(PROGS)
 
 MQJS_OBJS=mqjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto
 
+MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/cli/mtpsc.c
+MTPSC_OBJS = $(MTPSC_SOURCES:.c=.o)
+
+MTPSC_TEST_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/test/test.c
+MTPSC_TEST_OBJS = $(MTPSC_TEST_SOURCES:.c=.o)
+
 mqjs$(EXE): $(MQJS_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+mtpsc$(EXE): $(MTPSC_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+mtpsc_test$(EXE): $(MTPSC_TEST_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
 
 mquickjs.o: mquickjs_atom.h
 
@@ -117,7 +129,7 @@ example_stdlib.h: example_stdlib
 %.host.o: %.c
 	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
 
-test: mqjs example
+test: mqjs example mtpsc_test
 	./mqjs tests/test_closure.js
 	./mqjs tests/test_language.js
 	./mqjs tests/test_loop.js
@@ -127,6 +139,7 @@ test: mqjs example
 #	@sha256sum -c test_builtin.sha256
 	./mqjs -b test_builtin.bin
 	./example tests/test_rect.js
+	./mtpsc_test
 
 microbench: mqjs
 	./mqjs tests/microbench.js
