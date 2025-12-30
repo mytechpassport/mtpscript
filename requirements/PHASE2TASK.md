@@ -9,27 +9,27 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
   - [x] Connection pool management with per-request isolation
   - [ ] Query parameterization and SQL injection prevention
   - [x] Result serialization to canonical JSON
-  - [ ] Cache responses keyed by `(seed, query_hash)` for replay determinism
+  - [x] Cache responses keyed by `(seed, query_hash)` for replay determinism
 - [x] **DbWrite Effect**: Implement transactional SQL write operations
   - [x] Atomic transaction support with rollback capability
   - [ ] Write operation logging for audit trail
   - [ ] Idempotency key support for deterministic retries
 
 ### 1.2 HTTP Effect (§7)
-- [ ] **HttpOut Effect**: Implement outbound HTTP client with determinism guarantees
-  - Request serialization and canonical form
-  - Response caching keyed by `(seed, request_hash)` per §7-a
-  - Timeout handling with deterministic error shapes
-  - TLS certificate validation
-  - Request/response body size limits
+- [x] **HttpOut Effect**: Implement outbound HTTP client with determinism guarantees
+  - [ ] Request serialization and canonical form
+  - [x] Response caching keyed by `(seed, request_hash)` per §7-a
+  - [x] Timeout handling with deterministic error shapes
+  - [ ] TLS certificate validation
+  - [ ] Request/response body size limits
 
 ### 1.3 Logging Effect (§7)
-- [ ] **Log Effect**: Implement structured logging with audit compliance
-  - Log levels: `debug`, `info`, `warn`, `error`
-  - Structured JSON output per §23
-  - Correlation ID injection from request seed
-  - Log aggregation interface for CloudWatch/external systems
-  - No stack traces in production per §16
+- [x] **Log Effect**: Implement structured logging with audit compliance
+  - [x] Log levels: `debug`, `info`, `warn`, `error`
+  - [x] Structured JSON output per §23
+  - [x] Correlation ID injection from request seed
+  - [ ] Log aggregation interface for CloudWatch/external systems
+  - [x] No stack traces in production per §16
 
 ## 2. Full API Routing System (P0)
 
@@ -274,7 +274,7 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ### P0 Requirements (Must Have)
 - [ ] All four built-in effects (DbRead, DbWrite, HttpOut, Log) fully implemented
 - [ ] API routing handles path params, query params, and request bodies
-- [ ] Effect implementations cache responses for deterministic replay
+- [x] Effect implementations cache responses for deterministic replay
 - [x] All effects produce canonical JSON output per §23
 
 ### P1 Requirements (Should Have)

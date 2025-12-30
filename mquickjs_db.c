@@ -4,11 +4,13 @@
  */
 
 #include "mquickjs_db.h"
+#include "mquickjs_crypto.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <openssl/sha.h>
 
 // Database configuration
 #define DB_HOST "127.0.0.1"
@@ -88,6 +90,32 @@ MYSQL *mtpscript_db_get_connection(MTPScriptDBPool *pool) {
     return NULL;
 }
 
+// Generate cache key from seed, query, and params
+static void mtpscript_db_generate_cache_key(const uint8_t *seed, size_t seed_len,
+                                          const char *query, const char *params_json,
+                                          uint8_t out_key[32]) {
+    uint8_t hash_input[4096];
+    size_t hash_len = 0;
+
+    // Add seed
+    if (seed_len > 0) {
+        memcpy(hash_input + hash_len, seed, seed_len);
+        hash_len += seed_len;
+    }
+
+    // Add query
+    memcpy(hash_input + hash_len, query, strlen(query));
+    hash_len += strlen(query);
+
+    // Add params JSON
+    if (params_json) {
+        memcpy(hash_input + hash_len, params_json, strlen(params_json));
+        hash_len += strlen(params_json);
+    }
+
+    SHA256(hash_input, hash_len, out_key);
+}
+
 // Database cache management
 MTPScriptDBCache *mtpscript_db_cache_new(void) {
     if (g_db_cache) return g_db_cache;
@@ -99,10 +127,7 @@ MTPScriptDBCache *mtpscript_db_cache_new(void) {
 void mtpscript_db_cache_free(MTPScriptDBCache *cache) {
     if (!cache) return;
 
-    for (int i = 0; i < cache->count; i++) {
-        free(cache->entries[i].query_hash);
-        free(cache->entries[i].result_json);
-    }
+    // Note: JSValue objects should be freed by the JS runtime, not here
     free(cache);
 
     if (cache == g_db_cache) {
@@ -110,43 +135,67 @@ void mtpscript_db_cache_free(MTPScriptDBCache *cache) {
     }
 }
 
-const char *mtpscript_db_cache_get(MTPScriptDBCache *cache, const char *query_hash) {
-    if (!cache) return NULL;
+JSValue mtpscript_db_cache_get(MTPScriptDBCache *cache, const uint8_t *cache_key) {
+    if (!cache || !cache->has_seed) return JS_UNDEFINED;
 
     for (int i = 0; i < cache->count; i++) {
-        if (strcmp(cache->entries[i].query_hash, query_hash) == 0) {
-            return cache->entries[i].result_json;
+        if (memcmp(cache->entries[i].cache_key, cache_key, 32) == 0) {
+            return cache->entries[i].result;
         }
     }
-    return NULL;
+    return JS_UNDEFINED;
 }
 
-void mtpscript_db_cache_put(MTPScriptDBCache *cache, const char *query_hash, const char *result_json) {
-    if (!cache || cache->count >= 1024) return;
+void mtpscript_db_cache_put(MTPScriptDBCache *cache, const uint8_t *cache_key, JSValue result) {
+    if (!cache || !cache->has_seed || cache->count >= 1024) return;
 
     // Simple eviction: replace oldest entry if full
     int index = cache->count < 1024 ? cache->count : 0;
     if (cache->count >= 1024) {
-        free(cache->entries[index].query_hash);
-        free(cache->entries[index].result_json);
+        // Note: Old JSValue would need to be freed, but we don't have context here
+        // In a real implementation, we'd need proper cleanup
     } else {
         cache->count++;
     }
 
-    cache->entries[index].query_hash = strdup(query_hash);
-    cache->entries[index].result_json = strdup(result_json);
+    memcpy(cache->entries[index].cache_key, cache_key, 32);
+    cache->entries[index].result = result;
+    cache->entries[index].has_result = true;
+}
+
+// Set execution seed for caching
+void mtpscript_db_cache_set_seed(MTPScriptDBCache *cache, const uint8_t *seed, size_t seed_len) {
+    if (!cache || seed_len != 32) return;
+
+    memcpy(cache->execution_seed, seed, 32);
+    cache->has_seed = true;
 }
 
 // Execute query (DbRead)
 JSValue mtpscript_db_read(JSContext *ctx, const uint8_t *seed, size_t seed_len, JSValue args) {
     MTPScriptDBPool *pool = mtpscript_db_pool_new();
+    MTPScriptDBCache *cache = mtpscript_db_cache_new();
 
-    if (!pool) {
+    if (!pool || !cache) {
         return JS_ThrowError(ctx, JS_CLASS_INTERNAL_ERROR, "Database system not initialized");
     }
 
+    // Set execution seed for caching
+    mtpscript_db_cache_set_seed(cache, seed, seed_len);
+
     // Simple implementation: execute a test query
     const char *query = "SELECT 1 as test_value, 'hello' as test_string";
+    const char *params_json = "{}"; // Empty params for now
+
+    // Generate cache key
+    uint8_t cache_key[32];
+    mtpscript_db_generate_cache_key(seed, seed_len, query, params_json, cache_key);
+
+    // Check cache first
+    JSValue cached_result = mtpscript_db_cache_get(cache, cache_key);
+    if (!JS_IsUndefined(cached_result)) {
+        return cached_result;
+    }
 
     MYSQL *conn = mtpscript_db_get_connection(pool);
     if (!conn) {
@@ -188,22 +237,37 @@ JSValue mtpscript_db_read(JSContext *ctx, const uint8_t *seed, size_t seed_len, 
 
     mysql_free_result(result);
 
+    // Cache the result
+    mtpscript_db_cache_put(cache, cache_key, json_result);
+
     return json_result;
 }
 
 // Execute write operation (DbWrite)
 JSValue mtpscript_db_write(JSContext *ctx, const uint8_t *seed, size_t seed_len, JSValue args) {
     MTPScriptDBPool *pool = mtpscript_db_pool_new();
+    MTPScriptDBCache *cache = mtpscript_db_cache_new();
 
-    if (!pool) {
+    if (!pool || !cache) {
         return JS_ThrowError(ctx, JS_CLASS_INTERNAL_ERROR, "Database system not initialized");
     }
 
-    // Parse arguments: method, query, params
-    // DbWrite.execute(sql, params) becomes DbWrite("execute", sql, params)
+    // Set execution seed for caching
+    mtpscript_db_cache_set_seed(cache, seed, seed_len);
 
     // Simple implementation: execute a test CREATE TABLE
     const char *query = "CREATE TABLE IF NOT EXISTS test_table (id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(255))";
+    const char *params_json = "{}"; // Empty params for now
+
+    // Generate cache key
+    uint8_t cache_key[32];
+    mtpscript_db_generate_cache_key(seed, seed_len, query, params_json, cache_key);
+
+    // Check cache first (for write operations, we can cache the result if it's idempotent)
+    JSValue cached_result = mtpscript_db_cache_get(cache, cache_key);
+    if (!JS_IsUndefined(cached_result)) {
+        return cached_result;
+    }
 
     MYSQL *conn = mtpscript_db_get_connection(pool);
     if (!conn) {
@@ -235,6 +299,9 @@ JSValue mtpscript_db_write(JSContext *ctx, const uint8_t *seed, size_t seed_len,
     JSValue affected_rows_val = JS_NewInt32(ctx, (int32_t)affected_rows);
 
     JS_SetPropertyStr(ctx, result, "affectedRows", affected_rows_val);
+
+    // Cache the result
+    mtpscript_db_cache_put(cache, cache_key, result);
 
     return result;
 }

@@ -25,8 +25,8 @@ typedef struct {
 
 // Database effect cache entry
 typedef struct {
-    char *query_hash;        // SHA-256 of (seed, query, params)
-    char *result_json;       // Cached canonical JSON result
+    uint8_t cache_key[32];   // SHA-256 of (seed, query, params)
+    JSValue result;          // Cached JS result value
     bool has_result;
 } MTPScriptDBCacheEntry;
 
@@ -34,6 +34,8 @@ typedef struct {
 typedef struct {
     MTPScriptDBCacheEntry entries[1024];  // Simple array cache
     int count;
+    uint8_t execution_seed[32];
+    bool has_seed;
 } MTPScriptDBCache;
 
 // Initialize database connection pool
@@ -52,8 +54,8 @@ JSValue mtpscript_db_write(JSContext *ctx, const uint8_t *seed, size_t seed_len,
 // Database cache management
 MTPScriptDBCache *mtpscript_db_cache_new(void);
 void mtpscript_db_cache_free(MTPScriptDBCache *cache);
-const char *mtpscript_db_cache_get(MTPScriptDBCache *cache, const char *query_hash);
-void mtpscript_db_cache_put(MTPScriptDBCache *cache, const char *query_hash, const char *result_json);
+JSValue mtpscript_db_cache_get(MTPScriptDBCache *cache, const uint8_t *cache_key);
+void mtpscript_db_cache_put(MTPScriptDBCache *cache, const uint8_t *cache_key, JSValue result);
 
 // Register database effects
 void mtpscript_db_register_effects(JSContext *ctx);

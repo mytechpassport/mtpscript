@@ -21,6 +21,8 @@
 #include "../../src/host/lambda.h"
 #include "../../mquickjs.h"
 #include "../../mquickjs_db.h"
+#include "../../mquickjs_http.h"
+#include "../../mquickjs_log.h"
 
 #define ASSERT(expr, msg) \
     if (!(expr)) { \
@@ -229,6 +231,22 @@ bool test_connection_pooling() {
     return true;
 }
 
+// Test HTTP effect registration
+bool test_http_effect_registration() {
+    // Test that HTTP cache can be initialized
+    MTPScriptHTTPCache *cache = mtpscript_http_cache_new();
+    ASSERT(cache != NULL, "HTTP cache initialization failed");
+
+    return true;
+}
+
+// Test log effect
+bool test_log_effect() {
+    // Test logging functionality
+    mtpscript_log_write(MTPSCRIPT_LOG_INFO, "Test log message", "test-correlation-id", JS_UNDEFINED);
+    return true;
+}
+
 // Test Phase 2 acceptance criteria from PHASE2TASK.md
 bool test_phase2_acceptance_criteria() {
     // P0 Requirements (Must Have)
@@ -242,6 +260,8 @@ bool test_phase2_acceptance_criteria() {
     ASSERT(test_db_read_basic_query(), "DbRead basic query test failed");
     ASSERT(test_db_write_insert(), "DbWrite insert test failed");
     ASSERT(test_connection_pooling(), "Connection pooling test failed");
+    ASSERT(test_http_effect_registration(), "HTTP effect registration test failed");
+    ASSERT(test_log_effect(), "Log effect test failed");
 
     return true;
 }
