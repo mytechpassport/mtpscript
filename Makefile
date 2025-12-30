@@ -21,7 +21,7 @@ MYSQL_CFLAGS=$(shell mysql_config --include)
 MYSQL_LDFLAGS=$(shell mysql_config --libs)
 
 # Core include paths for migrated structure
-CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include $(MYSQL_CFLAGS) -I. -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Ibuild/generated
+CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include $(MYSQL_CFLAGS) -I. -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Ibuild/generated -Ibuild/templates
 HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math $(MYSQL_CFLAGS) -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Ibuild/generated
 
 ifdef CONFIG_SMALL
@@ -37,46 +37,103 @@ HOST_LDFLAGS=-g
 PROGS=mtpjs$(EXE) example$(EXE)
 TEST_PROGS=dtoa_test libm_test
 
-all: mtpjs_stdlib build/generated/mquickjs_atom.h $(PROGS)
+all: tools/mtpjs_stdlib build/generated/mquickjs_atom.h tools/example_stdlib build/generated/example_stdlib.h $(PROGS)
 
 # Core runtime object files (migrated structure)
 # Core runtime object files (migrated structure)
-MTPJS_OBJS=src/main/mtpjs.o src/main/readline_tty.o src/main/readline.o core/runtime/mquickjs.o core/crypto/mquickjs_crypto.o core/effects/mquickjs_effects.o core/db/mquickjs_db.o core/http/mquickjs_http.o core/effects/mquickjs_log.o core/stdlib/mquickjs_api.o core/runtime/mquickjs_errors.o core/utils/dtoa.o core/utils/libm.o core/utils/cutils.o
+MTPJS_OBJS=build/objects/mtpjs.o build/objects/readline_tty.o build/objects/readline.o build/objects/mquickjs.o build/objects/mquickjs_crypto.o build/objects/mquickjs_effects.o build/objects/mquickjs_db.o build/objects/mquickjs_http.o build/objects/mquickjs_log.o build/objects/mquickjs_api.o build/objects/mquickjs_errors.o build/objects/dtoa.o build/objects/libm.o build/objects/cutils.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto $(MYSQL_LDFLAGS) -lcurl
 
 mtpjs$(EXE): $(MTPJS_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 # Stdlib generation for runtime
-mtpjs_stdlib: src/stdlib/mtpjs_stdlib.host.o src/stdlib/mquickjs_build.host.o
+tools/mtpjs_stdlib: build/objects/mtpjs_stdlib.host.o build/objects/mquickjs_build.host.o
 	$(HOST_CC) $(HOST_LDFLAGS) -o $@ $^
 
-build/generated/mquickjs_atom.h: mtpjs_stdlib
-	./mtpjs_stdlib -a > $@
+build/generated/mquickjs_atom.h: tools/mtpjs_stdlib
+	./tools/mtpjs_stdlib -a > $@
 
-build/generated/mtpjs_stdlib.h: mtpjs_stdlib
-	./mtpjs_stdlib > $@
+build/generated/mtpjs_stdlib.h: tools/mtpjs_stdlib
+	./tools/mtpjs_stdlib > $@
 
 src/main/mtpjs.o: build/generated/mtpjs_stdlib.h
 
 # Example program
-example$(EXE): examples/example.o core/runtime/mquickjs.o core/crypto/mquickjs_crypto.o core/effects/mquickjs_effects.o core/db/mquickjs_db.o core/http/mquickjs_http.o core/effects/mquickjs_log.o core/stdlib/mquickjs_api.o core/runtime/mquickjs_errors.o core/utils/dtoa.o core/utils/libm.o core/utils/cutils.o
+example$(EXE): build/objects/example.o build/objects/mquickjs.o build/objects/mquickjs_crypto.o build/objects/mquickjs_effects.o build/objects/mquickjs_db.o build/objects/mquickjs_http.o build/objects/mquickjs_log.o build/objects/mquickjs_api.o build/objects/mquickjs_errors.o build/objects/dtoa.o build/objects/libm.o build/objects/cutils.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-example_stdlib: examples/example_stdlib.host.o src/stdlib/mquickjs_build.host.o
+tools/example_stdlib: build/objects/example_stdlib.host.o build/objects/mquickjs_build.host.o
 	$(HOST_CC) $(HOST_LDFLAGS) -o $@ $^
 
-build/generated/example_stdlib.h: example_stdlib
-	./example_stdlib > $@
+build/generated/example_stdlib.h: tools/example_stdlib
+	./tools/example_stdlib > $@
 
 examples/example.o: build/generated/example_stdlib.h
 
 # Build rules
-%.host.o: %.c
+build/objects/%.host.o: %.c
 	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
 
-%.o: %.c
+build/objects/%.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Specific rules for main objects
+build/objects/mtpjs.o: src/main/mtpjs.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/readline.o: src/main/readline.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/readline_tty.o: src/main/readline_tty.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/example.o: examples/example.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Specific rules for core objects
+build/objects/mquickjs.o: core/runtime/mquickjs.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/mquickjs_errors.o: core/runtime/mquickjs_errors.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/mquickjs_api.o: core/stdlib/mquickjs_api.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/mquickjs_crypto.o: core/crypto/mquickjs_crypto.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/mquickjs_effects.o: core/effects/mquickjs_effects.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/mquickjs_db.o: core/db/mquickjs_db.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/mquickjs_http.o: core/http/mquickjs_http.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/mquickjs_log.o: core/effects/mquickjs_log.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/dtoa.o: core/utils/dtoa.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/libm.o: core/utils/libm.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/objects/cutils.o: core/utils/cutils.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Specific rules for host objects
+build/objects/mtpjs_stdlib.host.o: src/stdlib/mtpjs_stdlib.c
+	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
+
+build/objects/mquickjs_build.host.o: src/stdlib/mquickjs_build.c
+	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
+
+build/objects/example_stdlib.host.o: examples/example_stdlib.c
+	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
 
 # Test targets
 test: mtpjs example
@@ -107,10 +164,8 @@ libm_test: tests/libm_test.o core/utils/libm.o
 # Cleanup
 clean:
 	rm -f *.o *.d *~ tests/*.o tests/*.d tests/*~ test_builtin.bin
-	rm -rf build/generated/* build/artifacts/*
-	rm -f mtpjs_stdlib example_stdlib
+	rm -rf build/generated/* build/artifacts/* build/objects/* build/*.json
+	rm -f tools/mtpjs_stdlib tools/example_stdlib
 	rm -f $(PROGS) $(TEST_PROGS)
-	find . -name "*.o" -type f -delete
-	find . -name "*.d" -type f -delete
 
 -include $(wildcard *.d)

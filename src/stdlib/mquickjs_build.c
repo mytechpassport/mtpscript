@@ -32,7 +32,7 @@
 #include <math.h>
 
 #include "cutils.h"
-#include "list.h"
+#include "../../core/utils/list.h"
 #include "mquickjs_build.h"
 
 static unsigned JSW = 4; // override this with -m64
@@ -380,7 +380,7 @@ static void dump_cfuncs(BuildContext *s)
 {
     int i;
     CFuncDef *e;
-    
+
     printf("static const JSCFunctionDef js_c_function_table[] = {\n");
     for(i = 0; i < s->cfunc_list.count; i++) {
         e = &s->cfunc_list.tab[i];
@@ -398,7 +398,7 @@ static void dump_cfinalizers(BuildContext *s)
 {
     struct list_head *el;
     ClassDefEntry *e;
-    
+
     printf("static const JSCFinalizer js_c_finalizer_table[JS_CLASS_COUNT - JS_CLASS_USER] = {\n");
     list_for_each(el, &s->class_list) {
         e = list_entry(el, ClassDefEntry, link);
@@ -440,7 +440,7 @@ static int define_props(BuildContext *s, const JSPropDef *props_def,
 
     if (!props_def)
         props_def = dummy_props;
-    
+
     n_props = 0;
     for(d = props_def; d->def_type != JS_DEF_END; d++) {
         n_props++;
@@ -466,7 +466,7 @@ static int define_props(BuildContext *s, const JSPropDef *props_def,
         int hash_size_log2;
         uint32_t hash_size, hash_mask;
         uint32_t *hash_table, h;
-        
+
         if (n_props <= 1)
             hash_size_log2 = 0;
         else
@@ -600,7 +600,7 @@ static ClassDefEntry *find_class(BuildContext *s, const JSClassDef *d)
 {
     struct list_head *el;
     ClassDefEntry *e;
-    
+
     list_for_each(el, &s->class_list) {
         e = list_entry(el, ClassDefEntry, link);
         if (e->class1 == d)
@@ -632,10 +632,10 @@ static int define_class(BuildContext *s, const JSClassDef *d)
     e = find_class(s, d);
     if (e)
         return e->class_idx;
-    
+
     if (d->parent_class)
         parent_class_idx = define_class(s, d->parent_class);
-    
+
     if (d->func_name) {
         ctor_func_idx = add_cfunc(&s->cfunc_list,
                                   d->name,
@@ -652,7 +652,7 @@ static int define_class(BuildContext *s, const JSClassDef *d)
         if (d->class_props)
             class_props_idx = define_props(s, d->class_props, PROPS_KIND_OBJECT, d->class_id);
     }
-    
+
     ident = s->cur_offset;
     printf("  /* class (offset=%d) */\n", ident);
     printf("  JS_MB_HEADER_DEF(JS_MTAG_OBJECT),\n");
@@ -671,7 +671,7 @@ static int define_class(BuildContext *s, const JSClassDef *d)
         printf("  JS_NULL,\n");
     }
     printf("\n");
-    
+
     s->cur_offset += 5;
 
     e = malloc(sizeof(*e));
@@ -728,7 +728,7 @@ static int define_value(BuildContext *s, const JSPropDef *d)
         {
             int get_idx = -1, set_idx = -1;
             char buf[256];
-            if (strcmp(d->u.getset.get_func_name, "NULL") != 0) { 
+            if (strcmp(d->u.getset.get_func_name, "NULL") != 0) {
                 snprintf(buf, sizeof(buf), "get %s", d->name);
                 get_idx = add_cfunc(&s->cfunc_list,
                                     buf,
@@ -737,7 +737,7 @@ static int define_value(BuildContext *s, const JSPropDef *d)
                                     d->u.getset.cproto_name,
                                     d->u.getset.get_func_name);
             }
-            if (strcmp(d->u.getset.set_func_name, "NULL") != 0) { 
+            if (strcmp(d->u.getset.set_func_name, "NULL") != 0) {
                 snprintf(buf, sizeof(buf), "set %s", d->name);
                 set_idx = add_cfunc(&s->cfunc_list,
                                     buf,
@@ -801,11 +801,11 @@ static void define_atoms_props(BuildContext *s, const JSPropDef *props_def, JSPr
         case JS_DEF_CGETSET:
             {
                 char buf[256];
-                if (strcmp(d->u.getset.get_func_name, "NULL") != 0) { 
+                if (strcmp(d->u.getset.get_func_name, "NULL") != 0) {
                     snprintf(buf, sizeof(buf), "get %s", d->name);
                     add_atom(&s->atom_list, buf);
                 }
-                if (strcmp(d->u.getset.set_func_name, "NULL") != 0) { 
+                if (strcmp(d->u.getset.set_func_name, "NULL") != 0) {
                     snprintf(buf, sizeof(buf), "set %s", d->name);
                     add_atom(&s->atom_list, buf);
                 }
@@ -837,12 +837,12 @@ int build_atoms(const char *stdlib_name, const JSPropDef *global_obj,
     unsigned jsw;
     BuildContext ss, *s = &ss;
     BOOL build_atom_defines = FALSE;
-    
+
 #if INTPTR_MAX >= INT64_MAX
     jsw = 8;
 #else
     jsw = 4;
-#endif    
+#endif
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-m64")) {
             jsw = 8;
@@ -859,12 +859,12 @@ int build_atoms(const char *stdlib_name, const JSPropDef *global_obj,
     }
 
     JSW = jsw;
-    
+
     if (build_atom_defines) {
         dump_atom_defines();
         return 0;
     }
-    
+
     memset(s, 0, sizeof(*s));
     init_list_head(&s->class_list);
 
@@ -897,7 +897,7 @@ int build_atoms(const char *stdlib_name, const JSPropDef *global_obj,
 
     printf("/* this file is automatically generated - do not edit */\n\n");
     printf("#include \"mquickjs_priv.h\"\n\n");
-    
+
     printf("static const uint%u_t __attribute((aligned(%d))) js_stdlib_table[] = {\n",
            JSW * 8, ATOM_ALIGN);
 
@@ -908,7 +908,7 @@ int build_atoms(const char *stdlib_name, const JSPropDef *global_obj,
     printf("};\n\n");
 
     dump_cfuncs(s);
-    
+
     printf("#ifndef JS_CLASS_COUNT\n"
            "#define JS_CLASS_COUNT JS_CLASS_USER /* total number of classes */\n"
            "#endif\n\n");
