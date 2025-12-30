@@ -123,7 +123,7 @@ phase1_regression_test$(EXE): $(PHASE1_REGRESSION_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 PHASE2_ACCEPTANCE_TEST_SOURCES = tests/unit/acceptance_test_phase_2.c
-PHASE2_ACCEPTANCE_TEST_OBJS = $(PHASE2_ACCEPTANCE_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/openapi.o src/compiler/module.o src/compiler/mtpscript.o
+PHASE2_ACCEPTANCE_TEST_OBJS = $(PHASE2_ACCEPTANCE_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/openapi.o src/compiler/module.o src/compiler/mtpscript.o src/cli/mtpsc.o
 
 tests/unit/acceptance_test_phase_2.o: tests/unit/acceptance_test_phase_2.c
 

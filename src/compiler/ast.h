@@ -133,7 +133,8 @@ typedef struct mtpscript_statement_t {
 typedef enum {
     MTPSCRIPT_DECL_FUNCTION,
     MTPSCRIPT_DECL_API,
-    MTPSCRIPT_DECL_IMPORT
+    MTPSCRIPT_DECL_IMPORT,
+    MTPSCRIPT_DECL_SERVE
 } mtpscript_declaration_kind_t;
 
 typedef struct {
@@ -163,6 +164,12 @@ typedef struct {
     mtpscript_vector_t *imports;       // symbols to import (mtpscript_string_t)
 } mtpscript_import_decl_t;
 
+typedef struct {
+    int port;                          // server port
+    mtpscript_string_t *host;          // optional host (default: localhost)
+    mtpscript_vector_t *routes;        // server routes (mtpscript_api_decl_t)
+} mtpscript_serve_decl_t;
+
 typedef struct mtpscript_declaration_t {
     mtpscript_declaration_kind_t kind;
     mtpscript_location_t location;
@@ -170,6 +177,7 @@ typedef struct mtpscript_declaration_t {
         mtpscript_function_decl_t function;
         mtpscript_api_decl_t api;
         mtpscript_import_decl_t import;
+        mtpscript_serve_decl_t serve;
     } data;
 } mtpscript_declaration_t;
 
@@ -181,6 +189,7 @@ typedef struct mtpscript_program_t {
 
 // Constructors
 mtpscript_type_t *mtpscript_type_new(mtpscript_type_kind_t kind);
+mtpscript_type_t *mtpscript_type_union_new(mtpscript_vector_t *variants);
 mtpscript_expression_t *mtpscript_expression_new(mtpscript_expression_kind_t kind);
 mtpscript_statement_t *mtpscript_statement_new(mtpscript_statement_kind_t kind);
 mtpscript_declaration_t *mtpscript_declaration_new(mtpscript_declaration_kind_t kind);

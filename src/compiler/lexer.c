@@ -95,6 +95,7 @@ mtpscript_error_t *mtpscript_lexer_tokenize(mtpscript_lexer_t *lexer, mtpscript_
             else if (strcmp(lexeme, "import") == 0) type = MTPSCRIPT_TOKEN_IMPORT;
             else if (strcmp(lexeme, "from") == 0) type = MTPSCRIPT_TOKEN_FROM;
             else if (strcmp(lexeme, "as") == 0) type = MTPSCRIPT_TOKEN_AS;
+            else if (strcmp(lexeme, "serve") == 0) type = MTPSCRIPT_TOKEN_SERVE;
             else if (strcmp(lexeme, "true") == 0) type = MTPSCRIPT_TOKEN_BOOL;
             else if (strcmp(lexeme, "false") == 0) type = MTPSCRIPT_TOKEN_BOOL;
             else if (strcmp(lexeme, "GET") == 0) type = MTPSCRIPT_TOKEN_GET;

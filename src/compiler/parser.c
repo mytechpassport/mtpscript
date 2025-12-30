@@ -371,6 +371,105 @@ static mtpscript_declaration_t *parse_declaration(mtpscript_parser_t *parser) {
         }
         match_token(parser, MTPSCRIPT_TOKEN_RBRACE);
         return decl;
+    } else if (match_token(parser, MTPSCRIPT_TOKEN_SERVE)) {
+        mtpscript_declaration_t *decl = mtpscript_declaration_new(MTPSCRIPT_DECL_SERVE);
+
+        // Parse serve { port: 8080, routes: [...] }
+        if (!match_token(parser, MTPSCRIPT_TOKEN_LBRACE)) {
+            return NULL;
+        }
+
+        // Parse configuration object
+        int port = 8080; // default
+        mtpscript_string_t *host = NULL;
+        mtpscript_vector_t *routes = mtpscript_vector_new();
+
+        while (!check_token(parser, MTPSCRIPT_TOKEN_RBRACE) && !check_token(parser, MTPSCRIPT_TOKEN_EOF)) {
+            mtpscript_token_t *key = advance_token(parser);
+            if (!match_token(parser, MTPSCRIPT_TOKEN_COLON)) {
+                return NULL;
+            }
+
+            if (strcmp(mtpscript_string_cstr(key->lexeme), "port") == 0) {
+                // Parse port number
+                mtpscript_token_t *port_token = advance_token(parser);
+                if (port_token->type != MTPSCRIPT_TOKEN_INT) {
+                    return NULL;
+                }
+                port = atoi(mtpscript_string_cstr(port_token->lexeme));
+            } else if (strcmp(mtpscript_string_cstr(key->lexeme), "host") == 0) {
+                // Parse host string
+                mtpscript_token_t *host_token = advance_token(parser);
+                if (host_token->type != MTPSCRIPT_TOKEN_STRING) {
+                    return NULL;
+                }
+                host = mtpscript_string_from_cstr(mtpscript_string_cstr(host_token->lexeme));
+            } else if (strcmp(mtpscript_string_cstr(key->lexeme), "routes") == 0) {
+                // Parse routes array
+                if (!match_token(parser, MTPSCRIPT_TOKEN_LBRACKET)) {
+                    return NULL;
+                }
+
+                while (!check_token(parser, MTPSCRIPT_TOKEN_RBRACKET) && !check_token(parser, MTPSCRIPT_TOKEN_EOF)) {
+                    // Parse route object { method: "GET", path: "/health", handler: health_func }
+                    if (!match_token(parser, MTPSCRIPT_TOKEN_LBRACE)) {
+                        return NULL;
+                    }
+
+                    mtpscript_api_decl_t *route = MTPSCRIPT_MALLOC(sizeof(mtpscript_api_decl_t));
+
+                    while (!check_token(parser, MTPSCRIPT_TOKEN_RBRACE) && !check_token(parser, MTPSCRIPT_TOKEN_EOF)) {
+                        mtpscript_token_t *route_key = advance_token(parser);
+                        if (!match_token(parser, MTPSCRIPT_TOKEN_COLON)) {
+                            return NULL;
+                        }
+
+                        if (strcmp(mtpscript_string_cstr(route_key->lexeme), "method") == 0) {
+                            mtpscript_token_t *method_token = advance_token(parser);
+                            route->method = mtpscript_string_from_cstr(mtpscript_string_cstr(method_token->lexeme));
+                        } else if (strcmp(mtpscript_string_cstr(route_key->lexeme), "path") == 0) {
+                            mtpscript_token_t *path_token = advance_token(parser);
+                            route->path = mtpscript_string_from_cstr(mtpscript_string_cstr(path_token->lexeme));
+                        } else if (strcmp(mtpscript_string_cstr(route_key->lexeme), "handler") == 0) {
+                            // Parse handler function reference
+                            mtpscript_token_t *handler_token = advance_token(parser);
+                            // For now, just store the handler name - full parsing would require symbol resolution
+                            route->handler = MTPSCRIPT_MALLOC(sizeof(mtpscript_function_decl_t));
+                            route->handler->name = mtpscript_string_from_cstr(mtpscript_string_cstr(handler_token->lexeme));
+                        }
+
+                        if (!match_token(parser, MTPSCRIPT_TOKEN_COMMA)) break;
+                    }
+
+                    if (!match_token(parser, MTPSCRIPT_TOKEN_RBRACE)) {
+                        return NULL;
+                    }
+
+                    mtpscript_vector_push(routes, route);
+                    if (!match_token(parser, MTPSCRIPT_TOKEN_COMMA)) break;
+                }
+
+                if (!match_token(parser, MTPSCRIPT_TOKEN_RBRACKET)) {
+                    return NULL;
+                }
+            }
+
+            if (!match_token(parser, MTPSCRIPT_TOKEN_COMMA)) break;
+        }
+
+        if (!match_token(parser, MTPSCRIPT_TOKEN_RBRACE)) {
+            return NULL;
+        }
+
+        // Create serve declaration
+        mtpscript_serve_decl_t *serve = MTPSCRIPT_MALLOC(sizeof(mtpscript_serve_decl_t));
+        serve->port = port;
+        serve->host = host ? host : mtpscript_string_from_cstr("localhost");
+        serve->routes = routes;
+
+        decl->data.serve = *serve;
+
+        return decl;
     }
     return NULL;
 }

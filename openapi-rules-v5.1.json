@@ -1,76 +1,242 @@
 {
-  "version": "5.1",
-  "description": "MTPScript OpenAPI Generation Rules - Annex B",
-  "field_ordering": {
-    "openapi": ["openapi", "info", "servers", "security", "tags", "externalDocs", "paths", "components"],
-    "info": ["title", "description", "termsOfService", "contact", "license", "version"],
-    "contact": ["name", "url", "email"],
-    "license": ["name", "url"],
-    "server": ["url", "description", "variables"],
-    "server_variable": ["enum", "default", "description"],
-    "security_requirement": ["<security_scheme_name>"],
-    "tag": ["name", "description", "externalDocs"],
-    "external_docs": ["description", "url"],
-    "path_item": ["$ref", "summary", "description", "get", "put", "post", "delete", "options", "head", "patch", "trace", "servers", "parameters"],
-    "operation": ["tags", "summary", "description", "externalDocs", "operationId", "parameters", "requestBody", "responses", "callbacks", "deprecated", "security", "servers"],
-    "parameter": ["name", "in", "description", "required", "deprecated", "allowEmptyValue", "style", "explode", "allowReserved", "schema", "example", "examples", "content"],
-    "request_body": ["description", "content", "required"],
-    "response": ["description", "headers", "content", "links"],
-    "responses": ["default", "1XX", "2XX", "3XX", "4XX", "5XX"],
-    "content": ["<media_type>"],
-    "media_type": ["schema", "example", "examples", "encoding"],
-    "encoding": ["contentType", "headers", "style", "explode", "allowReserved"],
-    "schema": ["$ref", "type", "format", "title", "description", "default", "multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength", "pattern", "maxItems", "minItems", "uniqueItems", "maxProperties", "minProperties", "required", "enum", "not", "allOf", "oneOf", "anyOf", "items", "properties", "additionalProperties", "discriminator", "readOnly", "writeOnly", "xml", "externalDocs", "example", "examples", "deprecated"],
-    "discriminator": ["propertyName", "mapping"],
-    "xml": ["name", "namespace", "prefix", "attribute", "wrapped"],
-    "components": ["schemas", "responses", "parameters", "examples", "requestBodies", "headers", "securitySchemes", "links", "callbacks"],
-    "security_scheme": ["type", "description", "name", "in", "scheme", "bearerFormat", "flows", "openIdConnectUrl"],
-    "oauth_flow": ["authorizationUrl", "tokenUrl", "refreshUrl", "scopes"],
-    "oauth_flows": ["implicit", "password", "clientCredentials", "authorizationCode"],
-    "link": ["operationRef", "operationId", "parameters", "requestBody", "description", "server"],
-    "callback": ["<expression>"],
-    "header": ["description", "required", "deprecated", "allowEmptyValue", "style", "explode", "allowReserved", "schema", "example", "examples"]
-  },
-  "ref_folding": {
-    "algorithm": "deterministic_ref_folding",
-    "description": "Replace inline schema definitions with $ref pointers using SHA-256 content-based addressing",
-    "steps": [
-      "Generate SHA-256 hash of canonical JSON representation of schema",
-      "Create component reference using first 8 characters of hash",
-      "Replace inline schema with { \"$ref\": \"#/components/schemas/Schema<8char_hash>\" }",
-      "Ensure all identical schemas resolve to same reference"
-    ],
-    "canonical_form": {
-      "field_ordering": "alphabetical",
-      "whitespace": "minimal",
-      "unicode_normalization": "NFC"
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "OpenAPI Generation Rules v5.1",
+  "description": "Deterministic rules for generating OpenAPI specifications from MTPScript",
+  "type": "object",
+  "properties": {
+    "fieldOrdering": {
+      "type": "object",
+      "description": "Deterministic field ordering rules",
+      "properties": {
+        "pathItem": {
+          "type": "array",
+          "description": "Order of HTTP methods in path items",
+          "items": {
+            "type": "string",
+            "enum": ["get", "post", "put", "delete", "patch", "head", "options", "trace"]
+          },
+          "default": ["get", "post", "put", "delete", "patch", "head", "options", "trace"]
+        },
+        "operation": {
+          "type": "array",
+          "description": "Order of fields within operation objects",
+          "items": {
+            "type": "string",
+            "enum": ["summary", "description", "operationId", "tags", "parameters", "requestBody", "responses", "callbacks", "deprecated", "security", "servers"]
+          },
+          "default": ["summary", "description", "operationId", "tags", "parameters", "requestBody", "responses", "callbacks", "deprecated", "security", "servers"]
+        },
+        "schema": {
+          "type": "array",
+          "description": "Order of fields within schema objects",
+          "items": {
+            "type": "string",
+            "enum": ["type", "format", "title", "description", "enum", "const", "multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength", "pattern", "maxItems", "minItems", "uniqueItems", "maxProperties", "minProperties", "required", "properties", "patternProperties", "additionalProperties", "items", "allOf", "oneOf", "anyOf", "not", "nullable", "discriminator", "readOnly", "writeOnly", "xml", "externalDocs", "example", "examples", "deprecated"]
+          }
+        },
+        "parameter": {
+          "type": "array",
+          "description": "Order of fields within parameter objects",
+          "items": {
+            "type": "string",
+            "enum": ["name", "in", "description", "required", "deprecated", "allowEmptyValue", "style", "explode", "allowReserved", "schema", "example", "examples", "content"]
+          }
+        }
+      }
+    },
+    "refFolding": {
+      "type": "object",
+      "description": "Rules for folding $ref references",
+      "properties": {
+        "maxRefDepth": {
+          "type": "integer",
+          "description": "Maximum depth for reference folding",
+          "default": 3,
+          "minimum": 1
+        },
+        "foldPrimitives": {
+          "type": "boolean",
+          "description": "Whether to fold primitive type references",
+          "default": true
+        },
+        "foldSimpleObjects": {
+          "type": "boolean",
+          "description": "Whether to fold simple object references",
+          "default": true
+        },
+        "minComplexityForRef": {
+          "type": "integer",
+          "description": "Minimum complexity score required to create a $ref",
+          "default": 5
+        }
+      }
+    },
+    "schemaDeduplication": {
+      "type": "object",
+      "description": "Rules for schema deduplication",
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "description": "Algorithm for computing schema similarity",
+          "enum": ["structural", "semantic", "hybrid"],
+          "default": "structural"
+        },
+        "similarityThreshold": {
+          "type": "number",
+          "description": "Minimum similarity score for deduplication",
+          "default": 0.95,
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "maxDeduplicationCandidates": {
+          "type": "integer",
+          "description": "Maximum number of candidates to consider for deduplication",
+          "default": 1000,
+          "minimum": 1
+        }
+      }
+    },
+    "pathParameterOrdering": {
+      "type": "object",
+      "description": "Rules for ordering path parameters",
+      "properties": {
+        "sortBy": {
+          "type": "string",
+          "description": "How to sort path parameters",
+          "enum": ["alphabetical", "appearance", "complexity"],
+          "default": "appearance"
+        },
+        "groupByType": {
+          "type": "boolean",
+          "description": "Whether to group parameters by type",
+          "default": false
+        }
+      }
+    },
+    "responseCanonicalization": {
+      "type": "object",
+      "description": "Rules for canonicalizing response schemas",
+      "properties": {
+        "canonicalStatusCodes": {
+          "type": "object",
+          "description": "Canonical status code mappings",
+          "properties": {
+            "200": { "type": "string", "default": "OK" },
+            "201": { "type": "string", "default": "Created" },
+            "204": { "type": "string", "default": "No Content" },
+            "400": { "type": "string", "default": "Bad Request" },
+            "401": { "type": "string", "default": "Unauthorized" },
+            "403": { "type": "string", "default": "Forbidden" },
+            "404": { "type": "string", "default": "Not Found" },
+            "409": { "type": "string", "default": "Conflict" },
+            "422": { "type": "string", "default": "Unprocessable Entity" },
+            "500": { "type": "string", "default": "Internal Server Error" }
+          }
+        },
+        "defaultResponseContentType": {
+          "type": "string",
+          "description": "Default content type for responses",
+          "default": "application/json"
+        },
+        "errorResponseSchema": {
+          "type": "object",
+          "description": "Schema for error responses",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["object"],
+              "default": "object"
+            },
+            "properties": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "string" },
+                    "message": { "type": "string" },
+                    "details": { "type": "object" }
+                  },
+                  "required": ["code", "message"]
+                }
+              },
+              "required": ["error"]
+            }
+          }
+        }
+      }
+    },
+    "determinism": {
+      "type": "object",
+      "description": "Determinism guarantees for OpenAPI generation",
+      "properties": {
+        "stableIds": {
+          "type": "boolean",
+          "description": "Whether operation IDs are stable across generations",
+          "default": true
+        },
+        "canonicalJson": {
+          "type": "boolean",
+          "description": "Whether output follows RFC 8785 canonical JSON",
+          "default": true
+        },
+        "timestampFree": {
+          "type": "boolean",
+          "description": "Whether output is free of timestamps",
+          "default": true
+        },
+        "versionAgnostic": {
+          "type": "boolean",
+          "description": "Whether output is agnostic to MTPScript version",
+          "default": false
+        }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "description": "MTPScript-specific OpenAPI extensions",
+      "properties": {
+        "x-mtpscript-gas-limit": {
+          "type": "object",
+          "description": "Gas limit extension for operations",
+          "properties": {
+            "required": { "type": "boolean", "default": true },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Maximum gas units allowed for this operation"
+              }
+            }
+          }
+        },
+        "x-mtpscript-effects": {
+          "type": "object",
+          "description": "Declared effects for operations",
+          "properties": {
+            "required": { "type": "boolean", "default": false },
+            "schema": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of effects declared by this operation"
+            }
+          }
+        },
+        "x-mtpscript-determinism": {
+          "type": "object",
+          "description": "Determinism level for operations",
+          "properties": {
+            "required": { "type": "boolean", "default": true },
+            "schema": {
+              "type": "string",
+              "enum": ["request", "seed", "global"],
+              "description": "Determinism level: request (per-request), seed (deterministic), global (nondeterministic)"
+            }
+          }
+        }
+      }
     }
   },
-  "schema_deduplication": {
-    "method": "content_hash_based",
-    "hash_function": "SHA-256",
-    "collision_handling": "append_counter",
-    "scope": "global_per_document",
-    "exclusions": ["title", "description", "example", "examples", "default"]
-  },
-  "path_parameter_ordering": {
-    "rule": "lexicographical_by_parameter_name",
-    "description": "Path parameters in OpenAPI spec must be ordered alphabetically by parameter name",
-    "example": "/users/{id}/posts/{postId} -> parameters: [id, postId]"
-  },
-  "deterministic_generation": {
-    "timestamp_inclusion": false,
-    "random_value_exclusion": true,
-    "environment_variable_exclusion": true,
-    "build_info_exclusion": true,
-    "required_properties": ["openapi", "info", "info.version", "info.title", "paths"]
-  },
-  "validation_rules": {
-    "openapi_version": "3.0.3",
-    "required_operation_fields": ["responses"],
-    "required_response_codes": ["200", "400", "500"],
-    "content_type_preference": ["application/json", "application/xml", "text/plain"],
-    "schema_validation": "strict",
-    "reference_validation": "required"
-  }
+  "required": ["fieldOrdering", "refFolding", "schemaDeduplication", "pathParameterOrdering", "responseCanonicalization", "determinism"]
 }

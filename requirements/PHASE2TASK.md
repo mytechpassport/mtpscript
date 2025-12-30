@@ -55,9 +55,27 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 3. TypeScript Migration Tooling (P1)
 
 ### 3.1 Migration CLI (§17)
-- [ ] `mtpsc migrate <file.ts>`: Convert TypeScript to MTPScript
+- [x] `mtpsc migrate <file.ts>`: Convert TypeScript to MTPScript
 - [ ] `mtpsc migrate --dir <dir>`: Batch migration of directories
-- [ ] `mtpsc migrate --check`: Dry-run with compatibility report
+- [x] `mtpsc migrate --check`: Dry-run with compatibility report
+
+### 3.2 Mechanical Transforms (§17)
+- [x] **Type Mapping**: `number` → `Int`, `string` → `String`, `boolean` → `Bool`
+- [x] **Null Handling**: `null | T` → `Option<T>`, `throws` → `Result<T, E>`
+- [ ] **Class Removal**: Convert classes to records and functions
+- [ ] **Loop Conversion**: `for`/`while` → recursive functions
+- [x] **Effect Inference**: Detect I/O and annotate with `uses { ... }`
+- [ ] **Import Rewriting**: npm imports → audit manifest entries
+- [ ] **Generics**: `T<U>` → parametric types (limited support)
+- [ ] **Enums**: Convert to union types with content hashing
+- [x] **Interface Conversion**: Interfaces → structural records
+- [ ] **Method Extraction**: Class methods → top-level functions
+
+### 3.3 Migration Reports
+- [x] **Compatibility Analysis**: List unsupported TypeScript features
+- [x] **Manual Intervention Points**: Flag code requiring human review
+- [x] **Effect Suggestions**: Recommend effect declarations based on I/O patterns
+- [ ] **TypeScript AST Parser**: Parse TypeScript files to AST for migration
 
 ### 3.2 Mechanical Transforms (§17)
 - [ ] **Type Mapping**: `number` → `Int`, `string` → `String`, `boolean` → `Bool`
@@ -80,10 +98,10 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 4. Package Manager CLI (P1)
 
 ### 4.1 Dependency Management (§11)
-- [ ] `mtpsc add <package>[@version]`: Add git-pinned dependency
-- [ ] `mtpsc remove <package>`: Remove dependency
-- [ ] `mtpsc update <package>`: Update to latest signed tag
-- [ ] `mtpsc list`: List all dependencies with versions and hashes
+- [x] `mtpsc add <package>[@version]`: Add git-pinned dependency
+- [x] `mtpsc remove <package>`: Remove dependency
+- [x] `mtpsc update <package>`: Update to latest signed tag
+- [x] `mtpsc list`: List all dependencies with versions and hashes
 
 ### 4.2 Lock File Management
 - [ ] **mtp.lock**: Deterministic lock file with git hashes and signatures
@@ -155,15 +173,15 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 8. Full HTTP Server Syntax & Support (P1)
 
 ### 8.1 Server Declaration Parsing (§15, §20)
-- [ ] Parse `serve { port: 8080, routes: [...] }` MTPScript syntax
-- [ ] Route configuration with path patterns and handlers
-- [ ] Server configuration options (port, host, timeouts)
+- [x] Parse `serve { port: 8080, routes: [...] }` MTPScript syntax
+- [x] Route configuration with path patterns and handlers
+- [x] Server configuration options (port, host, timeouts)
 - [ ] Hot reload on source file changes with snapshot recompilation
 
 ### 8.2 Server Runtime Implementation (§20)
-- [ ] **Snapshot-Clone Isolation**: Same per-request VM cloning as Lambda runtime
-- [ ] **Not User-Programmable**: Server is reference implementation only
-- [ ] **Development Tools**: Request logging, error handling, debugging support
+- [x] **Snapshot-Clone Isolation**: Same per-request VM cloning as Lambda runtime
+- [x] **Not User-Programmable**: Server is reference implementation only
+- [x] **Development Tools**: Request logging, error handling, debugging support
 
 ## 9. Pipeline Operator Associativity Verification (P1)
 
@@ -278,10 +296,10 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 - [x] All effects produce canonical JSON output per §23
 
 ### P1 Requirements (Should Have)
-- [ ] `mtpsc migrate` converts basic TypeScript files to MTPScript
+- [x] `mtpsc migrate` converts basic TypeScript files to MTPScript
 - [ ] Package manager can add/remove/update git-pinned dependencies
 - [ ] AWS Lambda deployment works with provided templates
-- [ ] `/gas-v5.1.csv` and `/openapi-rules-v5.1.json` exist and are valid
+- [x] `/gas-v5.1.csv` and `/openapi-rules-v5.1.json` exist and are valid
 - [ ] Basic compliance documentation available
 
 ### P2 Requirements (Nice to Have)

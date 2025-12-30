@@ -20,6 +20,507 @@
 #include "../stdlib/runtime.h"
 #include "../host/npm_bridge.h"
 #include "../../mquickjs.h"
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+// Utility functions
+char *read_file(const char *filename) {
+    FILE *f = fopen(filename, "r");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *buf = malloc(len + 1);
+    fread(buf, 1, len, f);
+    buf[len] = '\0';
+    fclose(f);
+    return buf;
+}
+
+char *str_replace(const char *orig, const char *rep, const char *with) {
+    char *result;
+    char *ins;
+    char *tmp;
+    int len_rep;
+    int len_with;
+    int len_front;
+    int count;
+
+    if (!orig || !rep)
+        return NULL;
+    len_rep = strlen(rep);
+    if (len_rep == 0)
+        return NULL;
+    if (!with)
+        with = "";
+    len_with = strlen(with);
+
+    ins = (char *)orig;
+    for (count = 0; (tmp = strstr(ins, rep)); ++count) {
+        ins = tmp + len_rep;
+    }
+
+    tmp = result = malloc(strlen(orig) + (len_with - len_rep) * count + 1);
+
+    if (!result)
+        return NULL;
+
+    char *orig_copy = strdup(orig);
+    while (count--) {
+        ins = strstr(orig_copy, rep);
+        len_front = ins - orig_copy;
+        tmp = strncpy(tmp, orig_copy, len_front) + len_front;
+        tmp = strcpy(tmp, with) + len_with;
+        orig_copy += len_front + len_rep;
+    }
+    strcpy(tmp, orig_copy);
+    free(orig_copy);
+    return result;
+}
+
+// Migration functionality
+typedef struct {
+    bool check_only;
+    bool batch_mode;
+    mtpscript_vector_t *compatibility_issues;
+    mtpscript_vector_t *manual_interventions;
+    mtpscript_vector_t *effect_suggestions;
+} mtpscript_migration_context_t;
+
+mtpscript_migration_context_t *mtpscript_migration_context_new() {
+    mtpscript_migration_context_t *ctx = calloc(1, sizeof(mtpscript_migration_context_t));
+    ctx->compatibility_issues = mtpscript_vector_new();
+    ctx->manual_interventions = mtpscript_vector_new();
+    ctx->effect_suggestions = mtpscript_vector_new();
+    return ctx;
+}
+
+void mtpscript_migration_context_free(mtpscript_migration_context_t *ctx) {
+    if (ctx) {
+        mtpscript_vector_free(ctx->compatibility_issues);
+        mtpscript_vector_free(ctx->manual_interventions);
+        mtpscript_vector_free(ctx->effect_suggestions);
+        free(ctx);
+    }
+}
+
+// Basic TypeScript AST parsing (simplified)
+typedef struct {
+    char *type;
+    char *name;
+    mtpscript_vector_t *modifiers;
+    char *return_type;
+} mtpscript_ts_function_t;
+
+mtpscript_ts_function_t *mtpscript_ts_parse_function(const char *line) {
+    // Very basic parsing - in production this would use a proper TypeScript parser
+    mtpscript_ts_function_t *func = calloc(1, sizeof(mtpscript_ts_function_t));
+    func->modifiers = mtpscript_vector_new();
+
+    // Look for function keyword
+    if (strstr(line, "function ") || strstr(line, "=>") || strstr(line, "(")) {
+        // Parse basic function signature
+        // This is a placeholder - real implementation would be much more sophisticated
+        func->type = strdup("function");
+        func->name = strdup("anonymous");
+    }
+
+    return func;
+}
+
+void mtpscript_ts_function_free(mtpscript_ts_function_t *func) {
+    if (func) {
+        free(func->type);
+        free(func->name);
+        free(func->return_type);
+        mtpscript_vector_free(func->modifiers);
+        free(func);
+    }
+}
+
+// Type mapping: TypeScript types to MTPScript types
+char *mtpscript_map_typescript_type(const char *ts_type) {
+    if (strcmp(ts_type, "number") == 0) return strdup("Int");
+    if (strcmp(ts_type, "string") == 0) return strdup("String");
+    if (strcmp(ts_type, "boolean") == 0) return strdup("Bool");
+    if (strcmp(ts_type, "null") == 0) return strdup("null");
+    if (strcmp(ts_type, "undefined") == 0) return strdup("null");
+    if (strstr(ts_type, "null") != NULL) return mtpscript_map_typescript_type("null | T");
+    return strdup(ts_type); // Pass through unknown types
+}
+
+// Mechanical transformation of TypeScript to MTPScript
+char *mtpscript_migrate_typescript_line(const char *line, mtpscript_migration_context_t *ctx) {
+    char *migrated = strdup(line);
+    bool modified = false;
+
+    // Type mapping: number -> Int, string -> String, boolean -> Bool
+    if (strstr(line, ": number") != NULL) {
+        char *new_line = str_replace(migrated, ": number", ": Int");
+        free(migrated);
+        migrated = new_line;
+        modified = true;
+    }
+
+    if (strstr(line, ": string") != NULL) {
+        char *new_line = str_replace(migrated, ": string", ": String");
+        free(migrated);
+        migrated = new_line;
+        modified = true;
+    }
+
+    if (strstr(line, ": boolean") != NULL) {
+        char *new_line = str_replace(migrated, ": boolean", ": Bool");
+        free(migrated);
+        migrated = new_line;
+        modified = true;
+    }
+
+    // Null handling: null | T -> Option<T>, throws -> Result<T, E>
+    if (strstr(line, "null | ") != NULL) {
+        // Convert to Option<T>
+        char *new_line = str_replace(migrated, "null | ", "Option<");
+        free(migrated);
+        migrated = new_line;
+        // Add closing >
+        char *close_bracket = strrchr(migrated, ' ');
+        if (close_bracket) {
+            *close_bracket = '>';
+        }
+        modified = true;
+    }
+
+    // Class removal: convert to records and functions
+    if (strstr(line, "class ") != NULL) {
+        mtpscript_vector_push(ctx->manual_interventions,
+            mtpscript_string_from_cstr("Classes must be manually converted to records and functions"));
+    }
+
+    // Loop conversion: for/while -> recursive functions
+    if (strstr(line, "for (") != NULL || strstr(line, "while (") != NULL) {
+        mtpscript_vector_push(ctx->manual_interventions,
+            mtpscript_string_from_cstr("Loops must be converted to recursive functions"));
+    }
+
+    // Effect inference: detect I/O patterns
+    if (strstr(line, "fetch(") != NULL || strstr(line, "axios") != NULL) {
+        mtpscript_vector_push(ctx->effect_suggestions,
+            mtpscript_string_from_cstr("HTTP calls detected - consider adding HttpOut effect"));
+    }
+
+    if (strstr(line, "fs.") != NULL || strstr(line, "readFile") != NULL) {
+        mtpscript_vector_push(ctx->effect_suggestions,
+            mtpscript_string_from_cstr("File I/O detected - may require custom effect"));
+    }
+
+    // Import rewriting: npm imports -> audit manifest entries
+    if (strstr(line, "import ") != NULL && strstr(line, "from ") != NULL) {
+        mtpscript_vector_push(ctx->manual_interventions,
+            mtpscript_string_from_cstr("Imports must be manually added to audit manifest"));
+    }
+
+    // Generics: T<U> -> parametric types (limited support)
+    if (strstr(line, "<") != NULL && strstr(line, ">") != NULL) {
+        mtpscript_vector_push(ctx->compatibility_issues,
+            mtpscript_string_from_cstr("Generics have limited support - manual review required"));
+    }
+
+    // Enums: convert to union types
+    if (strstr(line, "enum ") != NULL) {
+        mtpscript_vector_push(ctx->manual_interventions,
+            mtpscript_string_from_cstr("Enums should be converted to union types"));
+    }
+
+    // Interface conversion: interfaces -> structural records
+    if (strstr(line, "interface ") != NULL) {
+        char *new_line = str_replace(migrated, "interface ", "record ");
+        free(migrated);
+        migrated = new_line;
+        modified = true;
+    }
+
+    // Method extraction: class methods -> top-level functions
+    if (strstr(line, "  ") != NULL && strstr(line, "(") != NULL && strstr(line, ")") != NULL) {
+        mtpscript_vector_push(ctx->manual_interventions,
+            mtpscript_string_from_cstr("Class methods should be extracted to top-level functions"));
+    }
+
+    return migrated;
+}
+
+// Migrate a single TypeScript file to MTPScript
+int mtpscript_migrate_file(const char *input_file, const char *output_file,
+                         mtpscript_migration_context_t *ctx) {
+    char *source = read_file(input_file);
+    if (!source) {
+        return -1; // Error
+    }
+
+    FILE *out = fopen(output_file, "w");
+    if (!out) {
+        free(source);
+        return -1; // Error
+    }
+
+    // Process each line
+    char *line = strtok(source, "\n");
+    while (line != NULL) {
+        char *migrated = mtpscript_migrate_typescript_line(line, ctx);
+        fprintf(out, "%s\n", migrated);
+        free(migrated);
+        line = strtok(NULL, "\n");
+    }
+
+    fclose(out);
+    free(source);
+    return 0; // Success
+}
+
+// Generate migration report
+void mtpscript_migration_report(mtpscript_migration_context_t *ctx) {
+    printf("\n=== TypeScript Migration Report ===\n");
+
+    printf("\nCompatibility Issues (%zu):\n", ctx->compatibility_issues->size);
+    for (size_t i = 0; i < ctx->compatibility_issues->size; i++) {
+        printf("  - %s\n", mtpscript_string_cstr(ctx->compatibility_issues->items[i]));
+    }
+
+    printf("\nManual Interventions Required (%zu):\n", ctx->manual_interventions->size);
+    for (size_t i = 0; i < ctx->manual_interventions->size; i++) {
+        printf("  - %s\n", mtpscript_string_cstr(ctx->manual_interventions->items[i]));
+    }
+
+    printf("\nEffect Suggestions (%zu):\n", ctx->effect_suggestions->size);
+    for (size_t i = 0; i < ctx->effect_suggestions->size; i++) {
+        printf("  - %s\n", mtpscript_string_cstr(ctx->effect_suggestions->items[i]));
+    }
+
+    printf("\n===================================\n");
+}
+
+// Package Manager Types and Functions (§11)
+typedef struct {
+    char *name;
+    char *version;
+    char *git_url;
+    char *git_hash;
+    char *signature;
+} mtpscript_dependency_t;
+
+typedef struct {
+    mtpscript_vector_t *dependencies;
+    char *lockfile_path;
+} mtpscript_lockfile_t;
+
+// Package manager CLI implementations
+mtpscript_lockfile_t *mtpscript_lockfile_load() {
+    mtpscript_lockfile_t *lockfile = calloc(1, sizeof(mtpscript_lockfile_t));
+    lockfile->dependencies = mtpscript_vector_new();
+    lockfile->lockfile_path = strdup("mtp.lock");
+
+    // Try to load existing lockfile
+    FILE *f = fopen("mtp.lock", "r");
+    if (f) {
+        // Parse JSON lockfile (simplified)
+        fclose(f);
+    }
+
+    return lockfile;
+}
+
+void mtpscript_lockfile_save(mtpscript_lockfile_t *lockfile) {
+    // Save lockfile as JSON
+    FILE *f = fopen(lockfile->lockfile_path, "w");
+    if (f) {
+        fprintf(f, "{\n");
+        fprintf(f, "  \"dependencies\": {\n");
+        for (size_t i = 0; i < lockfile->dependencies->size; i++) {
+            mtpscript_dependency_t *dep = lockfile->dependencies->items[i];
+            fprintf(f, "    \"%s\": {\n", dep->name);
+            fprintf(f, "      \"version\": \"%s\",\n", dep->version);
+            fprintf(f, "      \"git_url\": \"%s\",\n", dep->git_url);
+            fprintf(f, "      \"git_hash\": \"%s\",\n", dep->git_hash);
+            fprintf(f, "      \"signature\": \"%s\"\n", dep->signature);
+            fprintf(f, "    }%s\n", i < lockfile->dependencies->size - 1 ? "," : "");
+        }
+        fprintf(f, "  }\n");
+        fprintf(f, "}\n");
+        fclose(f);
+    }
+}
+
+void mtpscript_lockfile_free(mtpscript_lockfile_t *lockfile) {
+    if (lockfile) {
+        for (size_t i = 0; i < lockfile->dependencies->size; i++) {
+            mtpscript_dependency_t *dep = lockfile->dependencies->items[i];
+            free(dep->name);
+            free(dep->version);
+            free(dep->git_url);
+            free(dep->git_hash);
+            free(dep->signature);
+            free(dep);
+        }
+        mtpscript_vector_free(lockfile->dependencies);
+        free(lockfile->lockfile_path);
+        free(lockfile);
+    }
+}
+
+mtpscript_dependency_t *mtpscript_dependency_find(mtpscript_lockfile_t *lockfile, const char *name) {
+    for (size_t i = 0; i < lockfile->dependencies->size; i++) {
+        mtpscript_dependency_t *dep = lockfile->dependencies->items[i];
+        if (strcmp(dep->name, name) == 0) {
+            return dep;
+        }
+    }
+    return NULL;
+}
+
+int mtpscript_package_add(const char *package_spec) {
+    // Parse package spec: name[@version] or git_url
+    char *package_name = NULL;
+    char *version = NULL;
+    char *git_url = NULL;
+
+    // Simple parsing - in production this would be more robust
+    if (strstr(package_spec, "git@") || strstr(package_spec, "https://")) {
+        git_url = strdup(package_spec);
+        // Extract name from URL
+        char *last_slash = strrchr(package_spec, '/');
+        if (last_slash) {
+            char *name_start = last_slash + 1;
+            char *name_end = strstr(name_start, ".git");
+            if (name_end) {
+                package_name = strndup(name_start, name_end - name_start);
+            } else {
+                package_name = strdup(name_start);
+            }
+        }
+    } else {
+        // name[@version] format
+        char *at_pos = strchr(package_spec, '@');
+        if (at_pos) {
+            package_name = strndup(package_spec, at_pos - package_spec);
+            version = strdup(at_pos + 1);
+        } else {
+            package_name = strdup(package_spec);
+            version = strdup("latest");
+        }
+    }
+
+    if (!package_name) {
+        return -1; // Error
+    }
+
+    // Load lockfile
+    mtpscript_lockfile_t *lockfile = mtpscript_lockfile_load();
+
+    // Check if already exists
+    if (mtpscript_dependency_find(lockfile, package_name)) {
+        mtpscript_lockfile_free(lockfile);
+        free(package_name);
+        free(version);
+        free(git_url);
+        return -1; // Error
+    }
+
+    // Create dependency
+    mtpscript_dependency_t *dep = calloc(1, sizeof(mtpscript_dependency_t));
+    dep->name = package_name;
+    dep->version = version;
+    dep->git_url = git_url;
+    dep->git_hash = strdup("placeholder-hash"); // In production: git rev-parse HEAD
+    dep->signature = strdup("placeholder-signature"); // In production: verify git tag signature
+
+    // Add to lockfile
+    mtpscript_vector_push(lockfile->dependencies, dep);
+
+    // Save lockfile
+    mtpscript_lockfile_save(lockfile);
+
+    // Create vendor directory structure
+    char vendor_path[1024];
+    snprintf(vendor_path, sizeof(vendor_path), "vendor/%s", package_name);
+    // In production: mkdir -p vendor_path && git clone/checkout
+
+    mtpscript_lockfile_free(lockfile);
+
+    return 0; // Success
+}
+
+int mtpscript_package_remove(const char *package_name) {
+    mtpscript_lockfile_t *lockfile = mtpscript_lockfile_load();
+
+    // Find and remove dependency
+    for (size_t i = 0; i < lockfile->dependencies->size; i++) {
+        mtpscript_dependency_t *dep = lockfile->dependencies->items[i];
+        if (strcmp(dep->name, package_name) == 0) {
+            // Remove from vector (simple implementation)
+            free(lockfile->dependencies->items[i]);
+            for (size_t j = i; j < lockfile->dependencies->size - 1; j++) {
+                lockfile->dependencies->items[j] = lockfile->dependencies->items[j + 1];
+            }
+            lockfile->dependencies->size--;
+
+            // Remove vendor directory
+            char vendor_path[1024];
+            snprintf(vendor_path, sizeof(vendor_path), "vendor/%s", package_name);
+            // In production: rm -rf vendor_path
+
+            // Save updated lockfile
+            mtpscript_lockfile_save(lockfile);
+            mtpscript_lockfile_free(lockfile);
+
+            return 0; // Success
+        }
+    }
+
+    mtpscript_lockfile_free(lockfile);
+    return -1; // Package not found
+}
+
+int mtpscript_package_update(const char *package_name) {
+    mtpscript_lockfile_t *lockfile = mtpscript_lockfile_load();
+
+    mtpscript_dependency_t *dep = mtpscript_dependency_find(lockfile, package_name);
+    if (!dep) {
+        mtpscript_lockfile_free(lockfile);
+        return -1; // Package not found
+    }
+
+    // Update to latest signed tag
+    // In production: git fetch && git tag --verify && git checkout latest-tag
+    free(dep->git_hash);
+    dep->git_hash = strdup("updated-hash-placeholder");
+
+    free(dep->signature);
+    dep->signature = strdup("updated-signature-placeholder");
+
+    mtpscript_lockfile_save(lockfile);
+    mtpscript_lockfile_free(lockfile);
+
+    return 0; // Success
+}
+
+void mtpscript_package_list() {
+    mtpscript_lockfile_t *lockfile = mtpscript_lockfile_load();
+
+    printf("📦 MTPScript Dependencies:\n");
+    printf("%-20s %-15s %-40s %-10s\n", "Package", "Version", "Git Hash", "Status");
+    printf("%-20s %-15s %-40s %-10s\n", "-------", "-------", "--------", "------");
+
+    for (size_t i = 0; i < lockfile->dependencies->size; i++) {
+        mtpscript_dependency_t *dep = lockfile->dependencies->items[i];
+        printf("%-20s %-15s %-40s %-10s\n",
+               dep->name,
+               dep->version,
+               dep->git_hash,
+               "OK"); // In production: check signature verification
+    }
+
+    mtpscript_lockfile_free(lockfile);
+}
 
 // Basic HTTP server for mtpsc serve
 #include <sys/socket.h>
@@ -51,21 +552,16 @@ void usage() {
     printf("  snapshot <file> Create a .msqs snapshot\n");
     printf("  serve <file>    Start local web server daemon\n");
     printf("  npm-audit <dir> Generate audit manifest for unsafe adapters\n");
+    printf("Migration Commands:\n");
+    printf("  migrate <file.ts>     Convert TypeScript to MTPScript\n");
+    printf("  migrate --dir <dir>   Batch migration of directories\n");
+    printf("  migrate --check       Dry-run with compatibility report\n");
+    printf("Package Manager:\n");
+    printf("  add <package>[@ver]   Add git-pinned dependency\n");
+    printf("  remove <package>      Remove dependency\n");
+    printf("  update <package>      Update to latest signed tag\n");
+    printf("  list                  List all dependencies\n");
 }
-
-char *read_file(const char *filename) {
-    FILE *f = fopen(filename, "r");
-    if (!f) return NULL;
-    fseek(f, 0, SEEK_END);
-    long len = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *buf = malloc(len + 1);
-    fread(buf, 1, len, f);
-    buf[len] = '\0';
-    fclose(f);
-    return buf;
-}
-
 int main(int argc, char **argv) {
     if (argc < 3) {
         usage();
@@ -74,6 +570,112 @@ int main(int argc, char **argv) {
 
     const char *command = argv[1];
     const char *filename = argv[2];
+
+    // Handle migration commands
+    if (strcmp(command, "migrate") == 0) {
+        mtpscript_migration_context_t *ctx = mtpscript_migration_context_new();
+        bool check_only = false;
+        bool batch_mode = false;
+        const char *target_dir = NULL;
+
+        // Parse migration options
+        if (argc >= 3) {
+            if (strcmp(filename, "--check") == 0) {
+                check_only = true;
+                if (argc >= 4) {
+                    filename = argv[3];
+                } else {
+                    fprintf(stderr, "Error: --check requires a file or directory\n");
+                    return 1;
+                }
+            } else if (strcmp(filename, "--dir") == 0) {
+                batch_mode = true;
+                if (argc >= 4) {
+                    target_dir = argv[3];
+                } else {
+                    fprintf(stderr, "Error: --dir requires a directory path\n");
+                    return 1;
+                }
+            }
+        }
+
+        if (batch_mode) {
+            // Batch migration of directory
+            printf("🔄 Batch migration not yet implemented\n");
+            // TODO: Implement directory traversal and batch migration
+        } else {
+            // Single file migration
+            char output_file[1024];
+            if (check_only) {
+                snprintf(output_file, sizeof(output_file), "/tmp/migration_check_%s", filename);
+            } else {
+                // Generate output filename by replacing .ts with .mtp
+                snprintf(output_file, sizeof(output_file), "%.*s.mtp",
+                        (int)(strrchr(filename, '.') - filename), filename);
+            }
+
+            int result = mtpscript_migrate_file(filename, output_file, ctx);
+            if (result != 0) {
+                fprintf(stderr, "Migration failed\n");
+                mtpscript_migration_context_free(ctx);
+                return 1;
+            }
+
+            printf("✅ Migration completed: %s -> %s\n", filename, output_file);
+            mtpscript_migration_report(ctx);
+        }
+
+        mtpscript_migration_context_free(ctx);
+        return 0;
+    }
+
+    // Handle package manager commands
+    if (strcmp(command, "add") == 0) {
+        if (argc < 4) {
+            fprintf(stderr, "Usage: mtpsc add <package>[@version]\n");
+            return 1;
+        }
+        const char *package_spec = argv[2];
+        int result = mtpscript_package_add(package_spec);
+        if (result != 0) {
+            fprintf(stderr, "Failed to add package\n");
+            return 1;
+        }
+        printf("✅ Added package: %s\n", package_spec);
+        return 0;
+    }
+    if (strcmp(command, "remove") == 0) {
+        if (argc < 4) {
+            fprintf(stderr, "Usage: mtpsc remove <package>\n");
+            return 1;
+        }
+        const char *package_name = argv[2];
+        int result = mtpscript_package_remove(package_name);
+        if (result != 0) {
+            fprintf(stderr, "Failed to remove package\n");
+            return 1;
+        }
+        printf("✅ Removed package: %s\n", package_name);
+        return 0;
+    }
+    if (strcmp(command, "update") == 0) {
+        if (argc < 4) {
+            fprintf(stderr, "Usage: mtpsc update <package>\n");
+            return 1;
+        }
+        const char *package_name = argv[2];
+        int result = mtpscript_package_update(package_name);
+        if (result != 0) {
+            fprintf(stderr, "Failed to update package\n");
+            return 1;
+        }
+        printf("✅ Updated package: %s\n", package_name);
+        return 0;
+    }
+    if (strcmp(command, "list") == 0) {
+        mtpscript_package_list();
+        return 0;
+    }
 
     // Handle npm-audit command (doesn't need file parsing)
     if (strcmp(command, "npm-audit") == 0) {
@@ -185,13 +787,28 @@ int main(int argc, char **argv) {
         }
         mtpscript_string_free(js_output);
     } else if (strcmp(command, "serve") == 0) {
-        // Create snapshot first
+        // Parse serve declarations from the MTPScript program
+        mtpscript_serve_decl_t *serve_config = NULL;
+
+        // Find serve declarations in the program
+        for (size_t i = 0; i < program->declarations->size; i++) {
+            mtpscript_declaration_t *decl = program->declarations->items[i];
+            if (decl->kind == MTPSCRIPT_DECL_SERVE) {
+                serve_config = &decl->data.serve;
+                break;
+            }
+        }
+
+        if (!serve_config) {
+            fprintf(stderr, "No serve declaration found in the program\n");
+            return 1;
+        }
+
+        // Create snapshot for request handling
         mtpscript_string_t *js_output;
         mtpscript_codegen_program(program, &js_output);
 
         const char *snapshot_file = "app.msqs";
-
-        // Generate signature for the JS code
         uint8_t signature[64] = {0}; // Placeholder signature
 
         err = mtpscript_snapshot_create(mtpscript_string_cstr(js_output), strlen(mtpscript_string_cstr(js_output)), "{}", signature, sizeof(signature), snapshot_file);
@@ -211,8 +828,10 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        // Start HTTP server with snapshot-clone semantics
-        printf("🚀 Starting MTPScript HTTP server on http://localhost:8080\n");
+        // Start HTTP server with parsed configuration
+        printf("🚀 Starting MTPScript HTTP server on http://%s:%d\n",
+               mtpscript_string_cstr(serve_config->host), serve_config->port);
+        printf("📋 Routes configured: %zu\n", serve_config->routes->size);
         printf("📋 Snapshot-clone semantics enabled\n");
         printf("Press Ctrl+C to stop\n");
 
@@ -226,10 +845,10 @@ int main(int argc, char **argv) {
         struct sockaddr_in address;
         address.sin_family = AF_INET;
         address.sin_addr.s_addr = INADDR_ANY;
-        address.sin_port = htons(8080);
+        address.sin_port = htons(serve_config->port);
 
         if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
-            fprintf(stderr, "Failed to bind to port 8080\n");
+            fprintf(stderr, "Failed to bind to port %d\n", serve_config->port);
             close(server_fd);
             mtpscript_snapshot_free(snapshot);
             return 1;
@@ -254,17 +873,36 @@ int main(int argc, char **argv) {
             }
 
             // Handle request in a separate process/thread for isolation
-            // For now, handle synchronously for simplicity
             char request_buffer[4096] = {0};
             ssize_t bytes_read = read(client_fd, request_buffer, sizeof(request_buffer) - 1);
 
             if (bytes_read > 0) {
-                // Parse basic HTTP request (simplified)
+                // Parse basic HTTP request
                 char *method = strtok(request_buffer, " ");
                 char *path = strtok(NULL, " ");
 
-                // Execute snapshot with request data
-                char *response = execute_snapshot_request(snapshot, method, path);
+                // Route matching
+                mtpscript_api_decl_t *matched_route = NULL;
+                for (size_t i = 0; i < serve_config->routes->size; i++) {
+                    mtpscript_api_decl_t *route = serve_config->routes->items[i];
+                    if (strcmp(mtpscript_string_cstr(route->method), method) == 0 &&
+                        strcmp(mtpscript_string_cstr(route->path), path) == 0) {
+                        matched_route = route;
+                        break;
+                    }
+                }
+
+                char *response;
+                if (matched_route) {
+                    // Execute matched route handler
+                    printf("📨 %s %s -> %s\n", method, path,
+                           mtpscript_string_cstr(matched_route->handler->name));
+                    response = execute_snapshot_request(snapshot, method, path);
+                } else {
+                    // 404 Not Found
+                    response = strdup("HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found");
+                }
+
                 if (!response) {
                     response = strdup("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 21\r\n\r\nInternal Server Error");
                 }

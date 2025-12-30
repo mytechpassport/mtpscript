@@ -1,140 +1,115 @@
 opcode,name,cost_beta_units,category
-invalid,invalid,1,base
-push_value,push_value,1,base
-push_const,push_const,1,base
-fclosure,fclosure,1,base
-undefined,undefined,1,base
-null,null,1,base
-push_this,push_this,1,base
-push_false,push_false,1,base
-push_true,push_true,1,base
-object,object,3,allocation
-this_func,this_func,1,base
-arguments,arguments,1,base
-new_target,new_target,1,base
-drop,drop,1,base
-nip,nip,1,base
-dup,dup,1,base
-dup1,dup1,1,base
-dup2,dup2,1,base
-insert2,insert2,1,base
-insert3,insert3,1,base
-perm3,perm3,1,base
-perm4,perm4,1,base
-swap,swap,1,base
-rot3l,rot3l,1,base
-call_constructor,call_constructor,5,function
-call,call,5,function
-call_method,call_method,5,function
-array_from,array_from,3,allocation
-return,return,1,base
-return_undef,return_undef,1,base
-throw,throw,10,error
-regexp,regexp,20,allocation
-get_field,get_field,3,property
-get_field2,get_field2,3,property
-put_field,put_field,3,property
-get_array_el,get_array_el,2,array
-get_array_el2,get_array_el2,2,array
-put_array_el,put_array_el,2,array
-get_length,get_length,1,property
-get_length2,get_length2,1,property
-define_field,define_field,3,property
-define_getter,define_getter,3,property
-define_setter,define_setter,3,property
-set_proto,set_proto,3,property
-get_loc,get_loc,1,variable
-put_loc,put_loc,1,variable
-get_arg,get_arg,1,variable
-put_arg,put_arg,1,variable
-get_var_ref,get_var_ref,1,variable
-put_var_ref,put_var_ref,1,variable
-get_var_ref_nocheck,get_var_ref_nocheck,1,variable
-put_var_ref_nocheck,put_var_ref_nocheck,1,variable
-if_false,if_false,1,control
-if_true,if_true,1,control
-goto,goto,1,control
-catch,catch,1,control
-gosub,gosub,1,control
-ret,ret,1,control
-for_in_start,for_in_start,5,loop
-for_of_start,for_of_start,5,loop
-for_of_next,for_of_next,5,loop
-neg,neg,2,arithmetic
-plus,plus,2,arithmetic
-dec,dec,2,arithmetic
-inc,inc,2,arithmetic
-post_dec,post_dec,2,arithmetic
-post_inc,post_inc,2,arithmetic
-not,not,1,logic
-lnot,lnot,1,logic
-typeof,typeof,1,logic
-delete,delete,3,property
-mul,mul,2,arithmetic
-div,div,2,arithmetic
-mod,mod,2,arithmetic
-add,add,2,arithmetic
-sub,sub,2,arithmetic
-pow,pow,10,arithmetic
-shl,shl,2,arithmetic
-sar,sar,2,arithmetic
-shr,shr,2,arithmetic
-lt,lt,1,comparison
-lte,lte,1,comparison
-gt,gt,1,comparison
-gte,gte,1,comparison
-instanceof,instanceof,5,comparison
-in,in,3,comparison
-eq,eq,1,comparison
-neq,neq,1,comparison
-strict_eq,strict_eq,1,comparison
-strict_neq,strict_neq,1,comparison
-and,and,1,logic
-xor,xor,1,logic
-or,or,1,logic
-nop,nop,1,base
-push_minus1,push_minus1,1,base
-push_0,push_0,1,base
-push_1,push_1,1,base
-push_2,push_2,1,base
-push_3,push_3,1,base
-push_4,push_4,1,base
-push_5,push_5,1,base
-push_6,push_6,1,base
-push_7,push_7,1,base
-push_i8,push_i8,1,base
-push_i16,push_i16,1,base
-push_const8,push_const8,1,base
-fclosure8,fclosure8,1,base
-push_empty_string,push_empty_string,1,base
-get_loc8,get_loc8,1,variable
-put_loc8,put_loc8,1,variable
-get_loc0,get_loc0,1,variable
-get_loc1,get_loc1,1,variable
-get_loc2,get_loc2,1,variable
-get_loc3,get_loc3,1,variable
-put_loc0,put_loc0,1,variable
-put_loc1,put_loc1,1,variable
-put_loc2,put_loc2,1,variable
-put_loc3,put_loc3,1,variable
-get_arg0,get_arg0,1,variable
-get_arg1,get_arg1,1,variable
-get_arg2,get_arg2,1,variable
-get_arg3,get_arg3,1,variable
-put_arg0,put_arg0,1,variable
-put_arg1,put_arg1,1,variable
-put_arg2,put_arg2,1,variable
-put_arg3,put_arg3,1,variable
-json_parse,json_parse,20,json
-json_stringify,json_stringify,15,json
-effect_register,effect_register,20,effect
-effect_call,effect_call,100,effect
-crypto_hash,crypto_hash,50,crypto
-crypto_sign,crypto_sign,200,crypto
-crypto_verify,crypto_verify,150,crypto
-str_concat,str_concat,3,string
-array_access,array_access,2,array
-alloc_byte,alloc_byte,1,allocation
-alloc_value,alloc_value,3,allocation
-property_access,property_access,3,property
-string_access,string_access,2,string
+OP_ADD,Addition,2,Arithmetic
+OP_SUB,Subtraction,2,Arithmetic
+OP_MUL,Multiplication,3,Arithmetic
+OP_DIV,Division,4,Arithmetic
+OP_MOD,Modulo,4,Arithmetic
+OP_NEG,Negation,1,Arithmetic
+OP_LT,Less Than,2,Comparison
+OP_LE,Less Equal,2,Comparison
+OP_GT,Greater Than,2,Comparison
+OP_GE,Greater Equal,2,Comparison
+OP_EQ,Equal,2,Comparison
+OP_NE,Not Equal,2,Comparison
+OP_STRICT_EQ,Strict Equal,2,Comparison
+OP_STRICT_NE,Strict Not Equal,2,Comparison
+OP_LNOT,Logical Not,1,Logical
+OP_LAND,Logical And,2,Logical
+OP_LOR,Logical Or,2,Logical
+OP_IF,If Statement,3,Control Flow
+OP_IF_ELSE,If Else Statement,4,Control Flow
+OP_WHILE,While Loop,5,Control Flow
+OP_FOR,For Loop,6,Control Flow
+OP_BREAK,Break Statement,2,Control Flow
+OP_CONTINUE,Continue Statement,2,Control Flow
+OP_RETURN,Return Statement,3,Control Flow
+OP_THROW,Throw Exception,10,Control Flow
+OP_TRY,Try Block,5,Control Flow
+OP_CATCH,Catch Block,3,Control Flow
+OP_FINALLY,Finally Block,2,Control Flow
+OP_VAR_DECL,Variable Declaration,3,Variable
+OP_ASSIGN,Assignment,2,Variable
+OP_PROP_ACCESS,Property Access,3,Variable
+OP_PROP_ASSIGN,Property Assignment,4,Variable
+OP_ARRAY_ACCESS,Array Access,2,Variable
+OP_ARRAY_ASSIGN,Array Assignment,3,Variable
+OP_FUNC_DECL,Function Declaration,10,Function
+OP_FUNC_CALL,Function Call,5,Function
+OP_NEW,New Object,20,Function
+OP_DELETE,Delete Property,5,Variable
+OP_TYPEOF,Typeof Operator,2,Type
+OP_INSTANCEOF,Instanceof Operator,3,Type
+OP_IN,In Operator,2,Type
+OP_STR_CONCAT,String Concatenation,3,String
+OP_STR_INDEX,String Index Access,2,String
+OP_STR_SLICE,String Slice,4,String
+OP_STR_SPLIT,String Split,10,String
+OP_STR_REPLACE,String Replace,8,String
+OP_STR_SEARCH,String Search,6,String
+OP_STR_MATCH,Regex Match,15,String
+OP_STR_FORMAT,String Format,5,String
+OP_ARRAY_NEW,Array Creation,5,Array
+OP_ARRAY_PUSH,Array Push,3,Array
+OP_ARRAY_POP,Array Pop,2,Array
+OP_ARRAY_SHIFT,Array Shift,3,Array
+OP_ARRAY_UNSHIFT,Array Unshift,4,Array
+OP_ARRAY_SLICE,Array Slice,5,Array
+OP_ARRAY_SPLICE,Array Splice,8,Array
+OP_ARRAY_JOIN,Array Join,6,Array
+OP_ARRAY_SORT,Array Sort,20,Array
+OP_ARRAY_REVERSE,Array Reverse,3,Array
+OP_OBJECT_NEW,Object Creation,5,Object
+OP_OBJECT_KEYS,Object Keys,4,Object
+OP_OBJECT_VALUES,Object Values,4,Object
+OP_OBJECT_ENTRIES,Object Entries,5,Object
+OP_JSON_PARSE,JSON Parse,20,JSON
+OP_JSON_STRINGIFY,JSON Stringify,15,JSON
+OP_CRYPTO_SHA256,SHA256 Hash,50,Crypto
+OP_CRYPTO_MD5,MD5 Hash,30,Crypto
+OP_CRYPTO_HMAC_SHA256,SHA256 HMAC,60,Crypto
+OP_CRYPTO_SIGN,ECDSA Sign,200,Crypto
+OP_CRYPTO_VERIFY,ECDSA Verify,150,Crypto
+OP_CRYPTO_RANDOM,Random Bytes,10,Crypto
+OP_DB_READ,Database Read,100,Database
+OP_DB_WRITE,Database Write,150,Database
+OP_DB_CONNECT,Database Connect,50,Database
+OP_DB_QUERY,Database Query,80,Database
+OP_DB_TRANSACTION,Database Transaction,30,Database
+OP_HTTP_GET,HTTP GET,100,HTTP
+OP_HTTP_POST,HTTP POST,120,HTTP
+OP_HTTP_PUT,HTTP PUT,120,HTTP
+OP_HTTP_DELETE,HTTP DELETE,100,HTTP
+OP_HTTP_REQUEST,HTTP Request Base,80,HTTP
+OP_HTTP_RESPONSE,HTTP Response,60,HTTP
+OP_FILE_READ,File Read,50,File
+OP_FILE_WRITE,File Write,60,File
+OP_FILE_OPEN,File Open,20,File
+OP_FILE_CLOSE,File Close,5,File
+OP_FILE_STAT,File Stat,15,File
+OP_LOG_DEBUG,Log Debug,5,Logging
+OP_LOG_INFO,Log Info,5,Logging
+OP_LOG_WARN,Log Warning,5,Logging
+OP_LOG_ERROR,Log Error,5,Logging
+OP_PIPELINE,Pipeline Operator,3,Pipeline
+OP_PIPELINE_CALL,Pipeline Function Call,4,Pipeline
+OP_MATCH,Pattern Match,10,Pattern
+OP_MATCH_CASE,Match Case,5,Pattern
+OP_UNION_CREATE,Union Create,8,Union
+OP_UNION_MATCH,Union Match,12,Union
+OP_OPTION_SOME,Option Some,3,Option
+OP_OPTION_NONE,Option None,2,Option
+OP_RESULT_OK,Result Ok,3,Result
+OP_RESULT_ERR,Result Error,3,Result
+OP_EFFECT_REGISTER,Effect Register,20,Effect
+OP_EFFECT_PERFORM,Effect Perform,100,Effect
+OP_EFFECT_HANDLER,Effect Handler,15,Effect
+OP_CLONE_VM,VM Clone,200,VM
+OP_SNAPSHOT_LOAD,Snapshot Load,150,VM
+OP_SNAPSHOT_SAVE,Snapshot Save,100,VM
+OP_GAS_CHECK,Gas Check,1,Gas
+OP_GAS_CONSUME,Gas Consume,1,Gas
+OP_STACK_PUSH,Stack Push,1,Stack
+OP_STACK_POP,Stack Pop,1,Stack
+OP_SCOPE_ENTER,Scope Enter,2,Scope
+OP_SCOPE_EXIT,Scope Exit,2,Scope
+OP_TAIL_CALL,Tail Call,0,Tail Call
