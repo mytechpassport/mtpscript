@@ -97,6 +97,7 @@ typedef enum {
     JS_CLASS_BOOLEAN,
     JS_CLASS_STRING,
     JS_CLASS_DATE,
+    JS_CLASS_DECIMAL, /* MTPScript decimal type */
     JS_CLASS_REGEXP,
 
     JS_CLASS_ERROR,
@@ -132,7 +133,7 @@ typedef enum {
 
 /* temporary buffer to hold C strings */
 typedef struct {
-    uint8_t buf[5]; 
+    uint8_t buf[5];
 } JSCStringBuf;
 
 typedef struct JSGCRef {
@@ -155,6 +156,7 @@ JSValue JS_NewFloat64(JSContext *ctx, double d);
 JSValue JS_NewInt32(JSContext *ctx, int32_t val);
 JSValue JS_NewUint32(JSContext *ctx, uint32_t val);
 JSValue JS_NewInt64(JSContext *ctx, int64_t val);
+JSValue JS_NewDecimal(JSContext *ctx, const char *value_str, int32_t scale);
 
 static inline JS_BOOL JS_IsInt(JSValue v)
 {
@@ -262,10 +264,14 @@ JSContext *JS_NewContext(void *mem_start, size_t mem_size, const JSSTDLibraryDef
    to a binary file. JS_NewContext2() is not expected to be used in
    the embedded version */
 JSContext *JS_NewContext2(void *mem_start, size_t mem_size, const JSSTDLibraryDef *stdlib_def, JS_BOOL prepare_compilation);
+JSContext *JS_CloneContext(JSContext *ctx, void *mem_start, size_t mem_size);
 void JS_FreeContext(JSContext *ctx);
+void JS_SecureWipe(JSContext *ctx);
 void JS_SetContextOpaque(JSContext *ctx, void *opaque);
+void *JS_GetContextOpaque(JSContext *ctx);
 void JS_SetInterruptHandler(JSContext *ctx, JSInterruptHandler *interrupt_handler);
-void JS_SetRandomSeed(JSContext *ctx, uint64_t seed);
+void JS_SetRandomSeed(JSContext *ctx, const uint8_t *seed, size_t seed_len);
+void JS_SetGasLimit(JSContext *ctx, uint64_t limit);
 JSValue JS_GetGlobalObject(JSContext *ctx);
 JSValue JS_Throw(JSContext *ctx, JSValue obj);
 JSValue __js_printf_like(3, 4) JS_ThrowError(JSContext *ctx, JSObjectClassEnum error_num,
@@ -362,6 +368,25 @@ int JS_RelocateBytecode(JSContext *ctx,
    it. warning: the bytecode is not checked so it should come from a
    trusted source. */
 JSValue JS_LoadBytecode(JSContext *ctx, const uint8_t *buf);
+JSValue JS_LoadSnapshot(JSContext *ctx, const uint8_t *snapshot_data, size_t snapshot_len,
+                        const uint8_t *signature_data, size_t sig_len);
+typedef JSValue (*JSEffectHandler)(JSContext *ctx, const uint8_t *seed, size_t seed_len,
+                                   JSValue args);
+JS_BOOL JS_RegisterEffect(JSContext *ctx, const char *name, JSEffectHandler handler);
+JSValue JS_AsyncAwait(JSContext *ctx, const char *promise_hash, int cont_id, JSValue effect_args);
+
+typedef enum MTPScriptErrorCode {
+    MTP_ERROR_NONE = 0,
+    MTP_ERROR_GAS_EXHAUSTED = 100,
+    MTP_ERROR_MEMORY_LIMIT = 101,
+    MTP_ERROR_INVALID_DECIMAL = 102,
+    MTP_ERROR_OVERFLOW = 103,
+    MTP_ERROR_INVALID_EFFECT = 104,
+    MTP_ERROR_SIGNATURE_INVALID = 105,
+    MTP_ERROR_FORBIDDEN_SYNTAX = 106,
+} MTPScriptErrorCode;
+JSValue JS_ThrowTypedError(JSContext *ctx, MTPScriptErrorCode code, const char *message);
+JSValue JS_Freeze(JSContext *ctx, JSValue obj);
 
 /* debug functions */
 void JS_SetLogFunc(JSContext *ctx, JSWriteFunc *write_func);

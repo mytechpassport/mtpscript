@@ -197,6 +197,7 @@ static const JSPropDef js_math[] = {
     JS_CFUNC_SPECIAL_DEF("sqrt", 1, f_f, js_sqrt ),
 
     JS_PROP_DOUBLE_DEF("E", 2.718281828459045, 0 ),
+#if !MTPSCRIPT_DETERMINISTIC
     JS_PROP_DOUBLE_DEF("LN10", 2.302585092994046, 0 ),
     JS_PROP_DOUBLE_DEF("LN2", 0.6931471805599453, 0 ),
     JS_PROP_DOUBLE_DEF("LOG2E", 1.4426950408889634, 0 ),
@@ -224,7 +225,8 @@ static const JSPropDef js_math[] = {
     JS_CFUNC_SPECIAL_DEF("trunc", 1, f_f, js_trunc ),
     JS_CFUNC_SPECIAL_DEF("log2", 1, f_f, js_log2 ),
     JS_CFUNC_SPECIAL_DEF("log10", 1, f_f, js_log10 ),
-    
+#endif
+
     JS_PROP_END,
 };
 
@@ -358,13 +360,19 @@ static const JSPropDef js_global_object[] = {
     JS_PROP_CLASS_DEF("Float64Array", &js_Float64Array_class),
 
     JS_CFUNC_DEF("parseInt", 2, js_number_parseInt ),
+#if !MTPSCRIPT_DETERMINISTIC
     JS_CFUNC_DEF("parseFloat", 1, js_number_parseFloat ),
+#endif
+#if !MTPSCRIPT_DETERMINISTIC
     JS_CFUNC_DEF("eval", 1, js_global_eval),
+#endif
     JS_CFUNC_DEF("isNaN", 1, js_global_isNaN ),
     JS_CFUNC_DEF("isFinite", 1, js_global_isFinite ),
 
+#if !MTPSCRIPT_DETERMINISTIC
     JS_PROP_DOUBLE_DEF("Infinity", 1.0 / 0.0, 0 ),
     JS_PROP_DOUBLE_DEF("NaN", NAN, 0 ),
+#endif
     JS_PROP_UNDEFINED_DEF("undefined", 0 ),
     /* Note: null is expanded as the global object in js_global_object[] */
     JS_PROP_NULL_DEF("globalThis", 0 ),

@@ -17,6 +17,18 @@
 #define DUMP_BYTECODE /* include the dump_byte_code() function */
 #endif
 
+/* MTPScript hardening flags */
+#define MTPSCRIPT_DETERMINISTIC      1  // Enable all hardening
+#define MTPSCRIPT_NO_FLOAT           1  // Disable floating-point
+#define MTPSCRIPT_NO_LOOPS           1  // Disable loop constructs
+#define MTPSCRIPT_NO_EVAL            1  // Disable eval
+#define MTPSCRIPT_NO_TRY_CATCH       1  // Disable exception catching
+#define MTPSCRIPT_NO_STACKTRACE      1  // Disable stack traces in errors
+#define MTPSCRIPT_STRICT_INT         1  // Overflow throws RangeError
+#define MTPSCRIPT_STRICT_IMMUTABLE   1  // Enforce immutability
+#define MTPSCRIPT_GAS_DEFAULT        10000000     // Default gas (10M), runtime-configurable
+#define MTPSCRIPT_GAS_MAX            2000000000   // Max allowed gas limit (2B)
+
 #define JS_VALUE_TO_PTR(v) (void *)((uintptr_t)(v) - 1)
 #define JS_VALUE_FROM_PTR(ptr) (JSWord)((uintptr_t)(ptr) + 1)
 
@@ -29,6 +41,7 @@ enum {
     JS_MTAG_FLOAT64,
     JS_MTAG_INT64,
     JS_MTAG_STRING,
+    JS_MTAG_DECIMAL, /* MTPScript decimal type */
     /* other special memory blocks */
     JS_MTAG_FUNCTION_BYTECODE,
     JS_MTAG_VALUE_ARRAY,

@@ -30,10 +30,21 @@
 #include <assert.h>
 #include <math.h>
 #include <setjmp.h>
+#include <stddef.h>
 
 #include "cutils.h"
 #include "dtoa.h"
 #include "mquickjs_priv.h"
+#include "gas_costs.h"
+#include "mquickjs_effects.h"
+#include "mquickjs_errors.h"
+
+/* MTPScript Decimal type */
+typedef struct JSDecimal {
+    JS_MB_HEADER;
+    char value[35];   /* significand as string (1-34 digits, no leading zeros) + null terminator */
+    int32_t scale;    /* decimal places (0-28) */
+} JSDecimal;
 
 /*
   TODO:
@@ -236,6 +247,7 @@ struct JSContext {
     uint16_t class_count; /* number of classes including user classes */
     int16_t interrupt_counter;
     BOOL current_exception_is_uncatchable : 8;
+    size_t max_heap_size; /* MTPScript hard memory budget */
     struct JSParseState *parse_state; /* != NULL during JS_Eval() */
     int unique_strings_len;
     int js_call_rec_count; /* number of recursing JS_Call() */
@@ -247,6 +259,8 @@ struct JSContext {
     const JSCFunctionDef *c_function_table;
     const JSCFinalizer *c_finalizer_table;
     uint64_t random_state;
+    uint64_t gas_limit; /* MTPScript gas limit */
+    uint64_t gas_used;  /* MTPScript gas used counter */
     JSInterruptHandler *interrupt_handler;
     JSWriteFunc *write_func; /* for the various dump functions */
     void *opaque;
@@ -334,7 +348,8 @@ typedef struct {
 struct JSObject {
     JS_MB_HEADER;
     JSWord class_id: 8;
-    JSWord extra_size: JS_MB_PAD(JS_MTAG_BITS + 8);  /* object additional size, in JSValue */
+    JSWord is_immutable: 1;  /* MTPScript: immutability flag */
+    JSWord extra_size: 11;  /* object additional size, in JSValue (adjusted for immutability flag) */
 
     JSValue proto; /* JSObject or JS_NULL */
     /* JSValueArray. structure:
@@ -519,6 +534,16 @@ static int check_free_mem(JSContext *ctx, JSValue *stack_bottom, uint32_t size)
         JS_GC(ctx);
     }
 #endif
+
+    /* MTPScript: Enforce hard memory budget */
+    if (ctx->max_heap_size > 0) {
+        size_t current_heap_size = ctx->heap_free - ctx->heap_base;
+        if (current_heap_size + size > ctx->max_heap_size) {
+            /* Hard memory limit exceeded */
+            return -1;
+        }
+    }
+
     if (((uint8_t *)stack_bottom - ctx->heap_free) < size + ctx->min_free_size) {
         JS_GC(ctx);
         if (((uint8_t *)stack_bottom - ctx->heap_free) < size + ctx->min_free_size) {
@@ -1105,6 +1130,46 @@ JSValue JS_NewInt32(JSContext *ctx, int32_t val)
 JSValue JS_NewUint32(JSContext *ctx, uint32_t val)
 {
     return JS_NewInt64(ctx, val);
+}
+
+JSValue JS_NewDecimal(JSContext *ctx, const char *value_str, int32_t scale)
+{
+    JSDecimal *d;
+    JSValue val;
+
+    /* Validate inputs */
+    if (!value_str || scale < 0 || scale > 28) {
+        return JS_ThrowRangeError(ctx, "invalid decimal parameters");
+    }
+
+    /* Validate value_str: 1-34 digits, no leading zeros */
+    size_t len = strlen(value_str);
+    if (len < 1 || len > 34) {
+        return JS_ThrowRangeError(ctx, "decimal value must be 1-34 digits");
+    }
+
+    /* Check all characters are digits and no leading zero */
+    if (value_str[0] == '0' && len > 1) {
+        return JS_ThrowRangeError(ctx, "decimal value cannot have leading zeros");
+    }
+
+    for (size_t i = 0; i < len; i++) {
+        if (value_str[i] < '0' || value_str[i] > '9') {
+            return JS_ThrowRangeError(ctx, "decimal value must contain only digits");
+        }
+    }
+
+    /* Allocate decimal */
+    d = js_malloc(ctx, sizeof(JSDecimal), JS_MTAG_DECIMAL);
+    if (!d)
+        return JS_EXCEPTION;
+
+    /* Copy value string */
+    strncpy(d->value, value_str, sizeof(d->value) - 1);
+    d->value[sizeof(d->value) - 1] = '\0';  /* Ensure null termination */
+    d->scale = scale;
+
+    return JS_VALUE_FROM_PTR(d);
 }
 
 static BOOL JS_IsPrimitive(JSContext *ctx, JSValue val)
@@ -3577,6 +3642,9 @@ JSContext *JS_NewContext2(void *mem_start, size_t mem_size, const JSSTDLibraryDe
     ctx->unique_strings = JS_NULL;
 #endif
     ctx->random_state = 1;
+    ctx->gas_limit = MTPSCRIPT_GAS_DEFAULT;
+    ctx->gas_used = 0;
+    ctx->max_heap_size = mem_size; /* MTPScript: hard memory budget = allocated size */
     ctx->write_func = dummy_write_func;
     for(i = 0; i < JS_STRING_POS_CACHE_SIZE; i++)
         ctx->string_pos_cache[i].str = JS_NULL;
@@ -3660,8 +3728,72 @@ JSContext *JS_NewContext(void *mem_start, size_t mem_size, const JSSTDLibraryDef
     return JS_NewContext2(mem_start, mem_size, stdlib_def, FALSE);
 }
 
+JSContext *JS_CloneContext(JSContext *src_ctx, void *mem_start, size_t mem_size)
+{
+    JSContext *dst_ctx;
+    size_t ctx_size;
+
+    /* For now, implement a simple copy-based clone */
+    /* TODO: Implement true COW semantics with memory mapping */
+
+    if (!mem_start || mem_size < sizeof(JSContext)) {
+        return NULL;
+    }
+
+    /* Calculate the size of the source context */
+    ctx_size = src_ctx->heap_free - (uint8_t *)src_ctx;
+
+    if (mem_size < ctx_size) {
+        return NULL; /* Not enough memory */
+    }
+
+    /* Copy the entire context */
+    memcpy(mem_start, src_ctx, ctx_size);
+
+    dst_ctx = mem_start;
+
+    /* Adjust pointers in the cloned context */
+    ptrdiff_t offset = (uint8_t *)dst_ctx - (uint8_t *)src_ctx;
+
+    dst_ctx->heap_base = (uint8_t *)dst_ctx->heap_base + offset;
+    dst_ctx->heap_free = (uint8_t *)dst_ctx->heap_free + offset;
+    dst_ctx->stack_top = (uint8_t *)dst_ctx->stack_top + offset;
+
+    /* Reset runtime state */
+    dst_ctx->sp = (JSValue *)dst_ctx->stack_top;
+    dst_ctx->fp = dst_ctx->sp;
+    dst_ctx->current_exception = JS_UNDEFINED;
+    dst_ctx->gas_used = 0;
+
+    /* TODO: Deep copy any dynamic structures if needed */
+
+    return dst_ctx;
+}
+
+void JS_SecureWipe(JSContext *ctx)
+{
+    if (!ctx) return;
+
+    /* Use explicit_bzero if available, otherwise memset */
+#ifdef HAVE_EXPLICIT_BZERO
+    explicit_bzero(ctx->heap_base, ctx->heap_free - ctx->heap_base);
+#else
+    memset(ctx->heap_base, 0, ctx->heap_free - ctx->heap_base);
+    /* Prevent compiler optimization */
+    __asm__ __volatile__("" : : "r"(ctx->heap_base) : "memory");
+#endif
+
+    /* Clear sensitive fields */
+    ctx->random_state = 0;
+    ctx->gas_used = 0;
+    ctx->gas_limit = 0;
+}
+
 void JS_FreeContext(JSContext *ctx)
 {
+    /* Clean up effects registry */
+    cleanup_effects(ctx);
+
     /* call the user C finalizers */
     uint8_t *ptr;
     int size;
@@ -3684,6 +3816,23 @@ void JS_SetContextOpaque(JSContext *ctx, void *opaque)
     ctx->opaque = opaque;
 }
 
+void *JS_GetContextOpaque(JSContext *ctx)
+{
+    return ctx->opaque;
+}
+
+JSValue JS_Freeze(JSContext *ctx, JSValue obj)
+{
+    if (!JS_IsObject(ctx, obj)) {
+        return obj; /* Non-objects are already "frozen" */
+    }
+
+    JSObject *p = JS_VALUE_TO_PTR(obj);
+    p->is_immutable = 1;
+
+    return obj;
+}
+
 void JS_SetInterruptHandler(JSContext *ctx, JSInterruptHandler *interrupt_handler)
 {
     ctx->interrupt_handler = interrupt_handler;
@@ -3694,9 +3843,26 @@ void JS_SetLogFunc(JSContext *ctx, JSWriteFunc *write_func)
     ctx->write_func = write_func;
 }
 
-void JS_SetRandomSeed(JSContext *ctx, uint64_t seed)
+void JS_SetRandomSeed(JSContext *ctx, const uint8_t *seed, size_t seed_len)
 {
-    ctx->random_state = seed;
+    if (seed_len >= 8) {
+        // Use first 8 bytes as uint64_t for xorshift64star
+        memcpy(&ctx->random_state, seed, 8);
+    } else {
+        // Fallback to default seed
+        ctx->random_state = 1;
+    }
+}
+
+void JS_SetGasLimit(JSContext *ctx, uint64_t limit)
+{
+    if (limit == 0 || limit > MTPSCRIPT_GAS_MAX) {
+        /* Invalid gas limit - this should be caught at host level */
+        ctx->gas_limit = MTPSCRIPT_GAS_DEFAULT;
+    } else {
+        ctx->gas_limit = limit;
+    }
+    ctx->gas_used = 0;
 }
 
 JSValue JS_GetGlobalObject(JSContext *ctx)
@@ -3993,6 +4159,11 @@ static void build_backtrace(JSContext *ctx, JSValue error_obj,
 
     if (!JS_IsError(ctx, error_obj))
         return;
+
+#if MTPSCRIPT_NO_STACKTRACE
+    /* MTPScript: Skip stack trace generation in production */
+    return;
+#endif
     p = buf;
     buf_end = buf + sizeof(buf);
     p[0] = '\0';
@@ -5083,6 +5254,12 @@ static JSValue __js_poll_interrupt(JSContext *ctx)
 
 /* handle user interruption */
 #define POLL_INTERRUPT() do {                           \
+        if (unlikely(ctx->gas_used >= ctx->gas_limit)) { \
+            JS_ThrowTypedError(ctx, MTP_ERROR_GAS_EXHAUSTED, "Gas limit exceeded"); \
+            goto exception;                             \
+        }                                               \
+        /* Charge gas based on opcode cost */           \
+        ctx->gas_used += get_opcode_gas_cost((uint32_t)opcode);   \
         if (unlikely(--ctx->interrupt_counter <= 0)) {  \
             SAVE();                                     \
             val = __js_poll_interrupt(ctx);             \
@@ -6146,8 +6323,14 @@ JSValue JS_Call(JSContext *ctx, int call_flags)
                 op2 = sp[0];
                 if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {
                     int r;
-                    if (unlikely(__builtin_add_overflow((int)op1, (int)op2, &r)))
+                    if (unlikely(__builtin_add_overflow((int)op1, (int)op2, &r))) {
+#if MTPSCRIPT_STRICT_INT
+                        JS_ThrowRangeError(ctx, "integer overflow");
+                        goto exception;
+#else
                         goto add_slow;
+#endif
+                    }
                     sp[1] = (uint32_t)r;
                 } else
 #ifdef JS_USE_SHORT_FLOAT
@@ -6179,8 +6362,14 @@ JSValue JS_Call(JSContext *ctx, int call_flags)
                 op2 = sp[0];
                 if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {
                     int r;
-                    if (unlikely(__builtin_sub_overflow((int)op1, (int)op2, &r)))
+                    if (unlikely(__builtin_sub_overflow((int)op1, (int)op2, &r))) {
+#if MTPSCRIPT_STRICT_INT
+                        JS_ThrowRangeError(ctx, "integer overflow");
+                        goto exception;
+#else
                         goto binary_arith_slow;
+#endif
+                    }
                     sp[1] = (uint32_t)r;
                 } else
 #ifdef JS_USE_SHORT_FLOAT
@@ -6211,7 +6400,10 @@ JSValue JS_Call(JSContext *ctx, int call_flags)
                     v2 = (int)op2 >> 1;
                     r = (int64_t)v1 * (int64_t)v2;
                     if (unlikely(r != (int)r)) {
-#if defined(JS_USE_SHORT_FLOAT)
+#if MTPSCRIPT_STRICT_INT
+                        JS_ThrowRangeError(ctx, "integer overflow");
+                        goto exception;
+#elif defined(JS_USE_SHORT_FLOAT)
                         dr = (double)(r >> 1);
                         sp++;
                         goto float_result;
@@ -10392,6 +10584,30 @@ static int js_parse_statement(JSParseState *s, int state, int dummy_param)
         label_name = JS_NULL;
     }
 
+#if MTPSCRIPT_DETERMINISTIC
+    /* Check for forbidden syntax */
+    switch(s->token.val) {
+    case TOK_CLASS:
+        js_parse_error(s, "class syntax is forbidden in MTPScript");
+        break;
+    case TOK_IMPORT:
+        js_parse_error(s, "import syntax is forbidden in MTPScript");
+        break;
+    case TOK_TRY:
+    case TOK_CATCH:
+    case TOK_FINALLY:
+        js_parse_error(s, "try/catch/finally is forbidden in MTPScript");
+        break;
+    case TOK_FOR:
+    case TOK_WHILE:
+    case TOK_DO:
+        js_parse_error(s, "loops are forbidden in MTPScript");
+        break;
+    default:
+        break;
+    }
+#endif
+
     switch(s->token.val) {
     case '{':
         PARSE_CALL(s, 0, js_parse_block, 0);
@@ -11657,6 +11873,8 @@ static int js_parse_json_value(JSParseState *s, int state, int dummy_param)
                 prop = JS_ToPropertyKey(ctx, prop);
                 if (JS_IsException(prop))
                     js_parse_error_mem(s);
+
+
                 p = s->source_buf + pos;
                 p += skip_spaces((const char *)p);
                 if (*p != ':')

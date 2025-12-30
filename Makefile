@@ -27,8 +27,8 @@ endif
 
 HOST_CC=gcc
 CC=$(CROSS_PREFIX)gcc
-CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -fno-math-errno -fno-trapping-math
-HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -fno-math-errno -fno-trapping-math
+CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math
+HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math
 ifdef CONFIG_WERROR
 CFLAGS+=-Werror
 HOST_CFLAGS+=-Werror
@@ -76,11 +76,11 @@ MQJS_BUILD_FLAGS=-m32
 endif
 
 PROGS=mqjs$(EXE) example$(EXE)
-TEST_PROGS=dtoa_test libm_test 
+TEST_PROGS=dtoa_test libm_test
 
 all: $(PROGS)
 
-MQJS_OBJS=mqjs.o readline_tty.o readline.o mquickjs.o dtoa.o libm.o cutils.o
+MQJS_OBJS=mqjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
 LIBS=-lm
 
 mqjs$(EXE): $(MQJS_OBJS)
@@ -102,7 +102,7 @@ mqjs.o: mqjs_stdlib.h
 # C API example
 example.o: example_stdlib.h
 
-example$(EXE): example.o mquickjs.o dtoa.o libm.o cutils.o
+example$(EXE): example.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 example_stdlib: example_stdlib.host.o mquickjs_build.host.o
