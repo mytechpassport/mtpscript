@@ -48,6 +48,7 @@ This phase focuses on transforming the standard QuickJS engine into **MicroQuick
 - [ ] Add `MTP_GAS_LIMIT` environment variable reading (default: 10,000,000)
 - [ ] Implement gas limit range validation (1–2,000,000,000 inclusive)
 - [ ] Inject 64-bit unsigned `gasLimit` into VM state
+- [ ] **Ensure `gasLimit` is invisible to guest code** (cannot be read or queried) (§7)
 - [ ] Add gas limit to audit log (`gasLimit=<value>`)
 
 ### 3.2 Gas Exhaustion Semantics
@@ -83,6 +84,8 @@ This phase focuses on transforming the standard QuickJS engine into **MicroQuick
 - [ ] Disable `eval()`, `new Function()`, and dynamic code loading
 - [ ] Remove `class`, `this`, `try/catch/finally` constructs
 - [ ] Forbid loops, global mutation, and reflection/introspection
+- [ ] **Disable all floating-point math and JS `Number` (double) support** (§1.2)
+- [ ] **Disable implicit type coercions** (strict equality and typing only) (§1.2)
 - [ ] Patch MicroQuickJS to forbid double-path for integers > 2⁵³-1
 - [ ] Ensure `JsonNull` is inhabited only through parsing (no literal support)
 - [ ] **Remove JavaScript event loop visibility** (no `setTimeout`, `Promise` microtasks, etc.)
@@ -90,6 +93,7 @@ This phase focuses on transforming the standard QuickJS engine into **MicroQuick
 ### 5.2 Memory & Resource Constraints
 - [ ] Implement strict heap allocation tracking with fixed memory budget
 - [ ] Remove all OS-level access (filesystem, network, process)
+- [ ] Implement **sensitive page tracking** for selective secure wipe (§22)
 - [ ] Implement **block-synchronous host effect execution** for `Async.await`
 - [ ] Add immutable `Object.prototype` and globals to prevent prototype pollution
 - [ ] Ensure no shared mutable state across requests
