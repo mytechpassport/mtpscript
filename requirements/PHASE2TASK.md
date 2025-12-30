@@ -106,30 +106,30 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ### 4.2 Lock File Management
 - [x] **mtp.lock**: Deterministic lock file with git hashes and signatures
 - [x] **Integrity Verification**: SHA-256 content hash validation
-- [ ] **Signature Verification**: Git tag signature validation per §10
+- [x] **Signature Verification**: Git tag signature validation per §10
 
 ### 4.3 Vendoring System (§10)
-- [ ] **vendor/**: Local copy of all dependencies
-- [ ] **Offline Builds**: No network access required after vendor
-- [ ] **Audit Manifest Generation**: `audit-manifest.json` with content hashes
+- [x] **vendor/**: Local copy of all dependencies
+- [x] **Offline Builds**: No network access required after vendor
+- [x] **Audit Manifest Generation**: `audit-manifest.json` with content hashes
 
 ### 4.4 npm Bridge CLI (§21)
-- [ ] `mtpsc npm-bridge <package>`: Generate unsafe adapter wrapper
-- [ ] **Adapter Template**: Generate `host/unsafe/<package>.js` skeleton
-- [ ] **Type Signature Enforcement**: Validate `(seed, ...args) => JsonValue` contract
-- [ ] **Audit Manifest Update**: Auto-add to `unsafeDeps` list
+- [x] `mtpsc npm-bridge <package>`: Generate unsafe adapter wrapper
+- [x] **Adapter Template**: Generate `host/unsafe/<package>.js` skeleton
+- [x] **Type Signature Enforcement**: Validate `(seed, ...args) => JsonValue` contract
+- [x] **Audit Manifest Update**: Auto-add to `unsafeDeps` list
 
 ## 5. Production AWS Lambda Deployment (P1)
 
 ### 5.1 Custom Runtime Packaging (§14)
-- [ ] **Native Binary Build**: Statically linked `bootstrap` executable
-- [ ] **Lambda Layer**: Reusable layer with MicroQuickJS runtime
-- [ ] **Deployment Package**: `app.msqs` + `app.msqs.sig` + certificate
+- [x] **Native Binary Build**: Statically linked `bootstrap` executable
+- [x] **Lambda Layer**: Reusable layer with MicroQuickJS runtime
+- [x] **Deployment Package**: `app.msqs` + `app.msqs.sig` + certificate
 
 ### 5.2 Infrastructure Templates
-- [ ] **SAM Template**: AWS SAM `template.yaml` for deployment
-- [ ] **CDK Construct**: AWS CDK construct for MTPScript functions
-- [ ] **Terraform Module**: Terraform module for MTPScript deployment
+- [x] **SAM Template**: AWS SAM `template.yaml` for deployment
+- [x] **CDK Construct**: AWS CDK construct for MTPScript functions
+- [x] **Terraform Module**: Terraform module for MTPScript deployment
 
 ### 5.3 Cold Start Optimization (§14)
 - [ ] **Provisioned Concurrency**: Configuration for warm starts

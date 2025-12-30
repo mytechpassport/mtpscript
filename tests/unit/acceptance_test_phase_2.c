@@ -47,6 +47,7 @@ char *mtpscript_migrate_typescript_line(const char *line, mtpscript_migration_co
 typedef struct {
     mtpscript_vector_t *dependencies;
     char *lockfile_path;
+    char *integrity_hash;  // SHA-256 of the entire lockfile
 } mtpscript_lockfile_t;
 
 typedef struct {
@@ -64,6 +65,8 @@ int mtpscript_package_add(const char *package_spec);
 int mtpscript_package_remove(const char *package_name);
 int mtpscript_package_update(const char *package_name);
 void mtpscript_package_list();
+char *mtpscript_lockfile_compute_integrity(mtpscript_lockfile_t *lockfile);
+bool mtpscript_dependency_verify_signature(mtpscript_dependency_t *dep);
 
 #define ASSERT(expr, msg) \
     if (!(expr)) { \
@@ -921,6 +924,53 @@ bool test_lockfile_integrity() {
     return true;
 }
 
+bool test_lockfile_signature_verification() {
+    // Test git tag signature verification
+    mtpscript_lockfile_t *lockfile = mtpscript_lockfile_load();
+
+    // Add a dependency with valid signature for testing
+    if (lockfile->dependencies->size == 0) {
+        mtpscript_dependency_t *dep = calloc(1, sizeof(mtpscript_dependency_t));
+        dep->name = strdup("sig-test");
+        dep->version = strdup("1.0.0");
+        dep->git_url = strdup("https://github.com/test/repo.git");
+        dep->git_hash = strdup("abcdef1234567890abcdef1234567890abcdef12");
+        dep->signature = strdup("a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890"); // Valid SHA-256
+        mtpscript_vector_push(lockfile->dependencies, dep);
+    }
+
+    // Test signature verification for all dependencies
+    bool all_verified = true;
+    for (size_t i = 0; i < lockfile->dependencies->size; i++) {
+        mtpscript_dependency_t *dep = lockfile->dependencies->items[i];
+        bool sig_ok = mtpscript_dependency_verify_signature(dep);
+
+        // Dependencies with valid SHA-256 signatures should pass
+        if (strlen(dep->signature) == 64 && strcmp(dep->signature, "placeholder-signature") != 0) {
+            if (!sig_ok) {
+                all_verified = false;
+                break;
+            }
+        }
+    }
+
+    ASSERT(all_verified, "All dependencies with valid signatures should verify successfully");
+
+    // Test with invalid signature
+    mtpscript_dependency_t *invalid_dep = calloc(1, sizeof(mtpscript_dependency_t));
+    invalid_dep->name = strdup("invalid-sig-test");
+    invalid_dep->signature = strdup("invalid-signature-format");
+    bool invalid_sig_verified = mtpscript_dependency_verify_signature(invalid_dep);
+    ASSERT(!invalid_sig_verified, "Invalid signature format should fail verification");
+
+    free(invalid_dep->name);
+    free(invalid_dep->signature);
+    free(invalid_dep);
+
+    mtpscript_lockfile_free(lockfile);
+    return true;
+}
+
 // HTTP Server Syntax tests (§8)
 bool test_http_server_syntax_parsing() {
     const char *source = "serve {\n"
@@ -1043,6 +1093,7 @@ bool test_phase2_acceptance_criteria() {
     ASSERT(test_package_manager_list(), "Package manager list test failed");
     ASSERT(test_lockfile_persistence(), "Lockfile persistence test failed");
     ASSERT(test_lockfile_integrity(), "Lockfile integrity test failed");
+    ASSERT(test_lockfile_signature_verification(), "Lockfile signature verification test failed");
     // - [ ] Full HTTP server syntax & support (serve { port: 8080, routes: [...] } parsing)
     ASSERT(test_http_server_syntax_parsing(), "HTTP server syntax parsing test failed");
     ASSERT(test_http_server_default_values(), "HTTP server default values test failed");
