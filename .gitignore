@@ -1,2 +1,13 @@
-   *.o
-   *.d
+**/*.o
+**/*.d
+**/*.exe
+**/*.bin
+**/*.sig
+**/*.msqs
+**/*.msqs.sig
+**/*.msqs.sig.pub
+**/*.msqs.sig.priv
+**/*.msqs.sig.pub.pem
+**/*.msqs.sig.priv.pem
+**/*.msqs.sig.pub.pem.sig
+**/*.msqs.sig.priv.pem.sig
