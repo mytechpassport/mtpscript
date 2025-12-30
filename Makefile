@@ -99,7 +99,7 @@ mtpsc_test$(EXE): $(MTPSC_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 MTPSC_ACCEPTANCE_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c tests/unit/acceptance_tests.c
-MTPSC_ACCEPTANCE_OBJS = $(MTPSC_ACCEPTANCE_SOURCES:.c=.o)
+MTPSC_ACCEPTANCE_OBJS = $(MTPSC_ACCEPTANCE_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
 
 mtpsc_acceptance$(EXE): $(MTPSC_ACCEPTANCE_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)

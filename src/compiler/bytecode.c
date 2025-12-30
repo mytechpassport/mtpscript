@@ -48,8 +48,8 @@ mtpscript_error_t *mtpscript_bytecode_compile(const char *js_source, const char 
     }
 
     // JavaScript parsed successfully - create bytecode object
-    // For now, we store the validated JavaScript source as "bytecode"
-    // In a full implementation, this would extract the actual MicroQuickJS bytecode
+    // For Phase 1, we store the validated JavaScript source as "bytecode"
+    // Full MicroQuickJS bytecode compilation would require more complex handling
     // The snapshot system handles signing and binary storage of the result
     mtpscript_bytecode_t *bytecode = MTPSCRIPT_MALLOC(sizeof(mtpscript_bytecode_t));
     size_t source_len = strlen(js_source);
