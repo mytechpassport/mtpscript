@@ -34,9 +34,9 @@ typedef enum {
 typedef struct mtpscript_type_t {
     mtpscript_type_kind_t kind;
     mtpscript_string_t *name;
-    struct mtpscript_type_t *inner; // For Option, List
+    struct mtpscript_type_t *inner; // For Option, List, Result value type
     struct mtpscript_type_t *key;   // For Map
-    struct mtpscript_type_t *value; // For Map, Result error type
+    struct mtpscript_type_t *value; // For Map
     struct mtpscript_type_t *error; // For Result error type
 } mtpscript_type_t;
 

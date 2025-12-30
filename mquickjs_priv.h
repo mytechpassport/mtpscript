@@ -253,6 +253,8 @@ JSValue js_date_constructor(JSContext *ctx, JSValue *this_val,
                             int argc, JSValue *argv);
 JSValue js_decimal_constructor(JSContext *ctx, JSValue *this_val,
                                int argc, JSValue *argv);
+JSValue js_decimal_toString(JSContext *ctx, JSValue *this_val,
+                            int argc, JSValue *argv);
 
 JSValue js_global_eval(JSContext *ctx, JSValue *this_val,
                        int argc, JSValue *argv);

@@ -8,6 +8,7 @@
 
 #include "parser.h"
 #include <string.h>
+#include <stdio.h>
 
 mtpscript_parser_t *mtpscript_parser_new(mtpscript_vector_t *tokens) {
     mtpscript_parser_t *parser = MTPSCRIPT_MALLOC(sizeof(mtpscript_parser_t));
@@ -47,6 +48,7 @@ static bool match_token(mtpscript_parser_t *parser, mtpscript_token_type_t type)
 static mtpscript_type_t *parse_type(mtpscript_parser_t *parser) {
     mtpscript_token_t *token = advance_token(parser);
     mtpscript_type_t *type;
+    // printf("DEBUG: parse_type sees token: %s\n", mtpscript_string_cstr(token->lexeme));
 
     if (strcmp(mtpscript_string_cstr(token->lexeme), "Int") == 0) {
         type = mtpscript_type_new(MTPSCRIPT_TYPE_INT);
@@ -57,17 +59,13 @@ static mtpscript_type_t *parse_type(mtpscript_parser_t *parser) {
     } else if (strcmp(mtpscript_string_cstr(token->lexeme), "Decimal") == 0) {
         type = mtpscript_type_new(MTPSCRIPT_TYPE_DECIMAL);
     } else if (strcmp(mtpscript_string_cstr(token->lexeme), "Option") == 0) {
-        type = mtpscript_type_new(MTPSCRIPT_TYPE_OPTION);
-        match_token(parser, MTPSCRIPT_TOKEN_LPAREN);
-        type->inner = parse_type(parser);
-        match_token(parser, MTPSCRIPT_TOKEN_RPAREN);
+        // TODO: Implement Option<T> parsing
+        type = mtpscript_type_new(MTPSCRIPT_TYPE_CUSTOM);
+        type->name = mtpscript_string_from_cstr("Option");
     } else if (strcmp(mtpscript_string_cstr(token->lexeme), "Result") == 0) {
-        type = mtpscript_type_new(MTPSCRIPT_TYPE_RESULT);
-        match_token(parser, MTPSCRIPT_TOKEN_LPAREN);
-        type->inner = parse_type(parser);  // T
-        match_token(parser, MTPSCRIPT_TOKEN_COMMA);
-        type->error = parse_type(parser);  // E
-        match_token(parser, MTPSCRIPT_TOKEN_RPAREN);
+        // TODO: Implement Result<T,E> parsing
+        type = mtpscript_type_new(MTPSCRIPT_TYPE_CUSTOM);
+        type->name = mtpscript_string_from_cstr("Result");
     } else {
         type = mtpscript_type_new(MTPSCRIPT_TYPE_CUSTOM);
         type->name = mtpscript_string_from_cstr(mtpscript_string_cstr(token->lexeme));
@@ -111,6 +109,19 @@ static mtpscript_expression_t *parse_primary_expression(mtpscript_parser_t *pars
 static mtpscript_expression_t *parse_expression(mtpscript_parser_t *parser) {
     mtpscript_expression_t *expr = parse_primary_expression(parser);
 
+    // Handle binary operators
+    if (check_token(parser, MTPSCRIPT_TOKEN_STAR) ||
+        check_token(parser, MTPSCRIPT_TOKEN_PLUS) ||
+        check_token(parser, MTPSCRIPT_TOKEN_MINUS) ||
+        check_token(parser, MTPSCRIPT_TOKEN_SLASH)) {
+        mtpscript_token_t *op_token = advance_token(parser);
+        mtpscript_expression_t *binary_expr = mtpscript_expression_new(MTPSCRIPT_EXPR_BINARY_EXPR);
+        binary_expr->data.binary.left = expr;
+        binary_expr->data.binary.op = mtpscript_string_cstr(op_token->lexeme);
+        binary_expr->data.binary.right = parse_expression(parser);
+        expr = binary_expr;
+    }
+
     // Handle pipeline operators (left-associative)
     while (match_token(parser, MTPSCRIPT_TOKEN_PIPE)) {
         mtpscript_expression_t *pipe_expr = mtpscript_expression_new(MTPSCRIPT_EXPR_PIPE_EXPR);
@@ -127,6 +138,13 @@ static mtpscript_statement_t *parse_statement(mtpscript_parser_t *parser) {
         mtpscript_statement_t *stmt = mtpscript_statement_new(MTPSCRIPT_STMT_RETURN_STMT);
         stmt->data.return_stmt.expression = parse_expression(parser);
         return stmt;
+    } else if (match_token(parser, MTPSCRIPT_TOKEN_LET)) {
+        mtpscript_statement_t *stmt = mtpscript_statement_new(MTPSCRIPT_STMT_VAR_DECL);
+        mtpscript_token_t *name_token = advance_token(parser);
+        stmt->data.var_decl.name = mtpscript_string_from_cstr(mtpscript_string_cstr(name_token->lexeme));
+        match_token(parser, MTPSCRIPT_TOKEN_EQUALS);
+        stmt->data.var_decl.initializer = parse_expression(parser);
+        return stmt;
     }
     // Fallback
     mtpscript_statement_t *stmt = mtpscript_statement_new(MTPSCRIPT_STMT_EXPRESSION_STMT);
@@ -135,12 +153,17 @@ static mtpscript_statement_t *parse_statement(mtpscript_parser_t *parser) {
 }
 
 static mtpscript_declaration_t *parse_declaration(mtpscript_parser_t *parser) {
-    if (match_token(parser, MTPSCRIPT_TOKEN_API)) {
+    if (0 && match_token(parser, MTPSCRIPT_TOKEN_API)) { // TODO: Implement API parsing
         mtpscript_declaration_t *decl = mtpscript_declaration_new(MTPSCRIPT_DECL_API);
 
-        // Parse HTTP method
+        // Parse HTTP method - should be GET, POST, etc.
         mtpscript_token_t *method_token = advance_token(parser);
-        decl->data.api.method = mtpscript_string_from_cstr(mtpscript_string_cstr(method_token->lexeme));
+        if (method_token->type < MTPSCRIPT_TOKEN_GET || method_token->type > MTPSCRIPT_TOKEN_DELETE) {
+            // For now, accept any identifier as method
+            decl->data.api.method = mtpscript_string_from_cstr(mtpscript_string_cstr(method_token->lexeme));
+        } else {
+            decl->data.api.method = mtpscript_string_from_cstr(mtpscript_string_cstr(method_token->lexeme));
+        }
 
         // Parse path (string literal)
         mtpscript_token_t *path_token = advance_token(parser);
@@ -152,9 +175,7 @@ static mtpscript_declaration_t *parse_declaration(mtpscript_parser_t *parser) {
 
         // Parse effects (optional)
         mtpscript_vector_t *effects = mtpscript_vector_new();
-        if (match_token(parser, MTPSCRIPT_TOKEN_IDENTIFIER) &&
-            strcmp(mtpscript_string_cstr(peek_token(parser)->lexeme), "uses") == 0) {
-            advance_token(parser); // consume 'uses'
+        if (match_token(parser, MTPSCRIPT_TOKEN_USES)) {
             match_token(parser, MTPSCRIPT_TOKEN_LBRACE);
             while (!check_token(parser, MTPSCRIPT_TOKEN_RBRACE)) {
                 mtpscript_token_t *effect_token = advance_token(parser);
@@ -202,6 +223,35 @@ static mtpscript_declaration_t *parse_declaration(mtpscript_parser_t *parser) {
         func->effects = effects;
         decl->data.api.handler = func;
 
+        return decl;
+    } else if (match_token(parser, MTPSCRIPT_TOKEN_FUNC)) {
+        mtpscript_declaration_t *decl = mtpscript_declaration_new(MTPSCRIPT_DECL_FUNCTION);
+        mtpscript_token_t *name = advance_token(parser);
+        decl->data.function.name = mtpscript_string_from_cstr(mtpscript_string_cstr(name->lexeme));
+
+        match_token(parser, MTPSCRIPT_TOKEN_LPAREN);
+        decl->data.function.params = mtpscript_vector_new();
+        while (!check_token(parser, MTPSCRIPT_TOKEN_RPAREN)) {
+            mtpscript_param_t *param = MTPSCRIPT_MALLOC(sizeof(mtpscript_param_t));
+            param->name = mtpscript_string_from_cstr(mtpscript_string_cstr(advance_token(parser)->lexeme));
+            match_token(parser, MTPSCRIPT_TOKEN_COLON);
+            param->type = parse_type(parser);
+            mtpscript_vector_push(decl->data.function.params, param);
+            if (!match_token(parser, MTPSCRIPT_TOKEN_COMMA)) break;
+        }
+        match_token(parser, MTPSCRIPT_TOKEN_RPAREN);
+
+        if (match_token(parser, MTPSCRIPT_TOKEN_COLON)) {
+            decl->data.function.return_type = parse_type(parser);
+        }
+
+        match_token(parser, MTPSCRIPT_TOKEN_LBRACE);
+        decl->data.function.body = mtpscript_vector_new();
+        while (!check_token(parser, MTPSCRIPT_TOKEN_RBRACE)) {
+            mtpscript_vector_push(decl->data.function.body, parse_statement(parser));
+        }
+        match_token(parser, MTPSCRIPT_TOKEN_RBRACE);
+        decl->data.function.effects = mtpscript_vector_new(); // Empty for now
         return decl;
     } else if (match_token(parser, MTPSCRIPT_TOKEN_FUNC)) {
         mtpscript_declaration_t *decl = mtpscript_declaration_new(MTPSCRIPT_DECL_FUNCTION);

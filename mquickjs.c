@@ -2657,6 +2657,9 @@ static JSValue JS_GetPropertyInternal(JSContext *ctx, JSValue obj, JSValue prop,
                 p = JS_VALUE_TO_PTR(ctx->class_proto[JS_CLASS_STRING]);
             }
             break;
+        case JS_MTAG_DECIMAL:
+            p = JS_VALUE_TO_PTR(ctx->class_proto[JS_CLASS_DECIMAL]);
+            break;
         default:
         no_prop:
             return JS_ThrowTypeError(ctx, "cannot read property '%"JSValue_PRI"' of value", prop);
@@ -4730,6 +4733,8 @@ static no_inline JSValue js_add_slow(JSContext *ctx)
         JSDecimal *d1 = JS_VALUE_TO_PTR(*op1);
         JSDecimal *d2 = JS_VALUE_TO_PTR(*op2);
 
+        /* printf("js_add_slow: Decimal addition %s (scale %d) + %s (scale %d)\n", d1->value, d1->scale, d2->value, d2->scale); */
+
         /* Implement addition using string-based arithmetic for now */
         /* Handle the specific test case 10.50 + 5.25 */
         if (d1->scale == 2 && d2->scale == 2) {
@@ -4762,10 +4767,10 @@ static no_inline JSValue js_add_slow(JSContext *ctx)
         return JS_ConcatString(ctx, *op1, *op2);
 #endif
     } else {
-        double d1, d2, r;
 #if MTPSCRIPT_DETERMINISTIC
         return JS_ThrowTypeError(ctx, "floating point math is forbidden");
 #else
+        double d1, d2, r;
         /* cannot fail */
         if (JS_ToNumber(ctx, &d1, *op1))
             return JS_EXCEPTION;
@@ -4984,37 +4989,85 @@ static BOOL js_structural_eq(JSContext *ctx, JSValue op1, JSValue op2)
             if (obj1->class_id != obj2->class_id)
                 return FALSE;
 
+            if (obj1->class_id == JS_CLASS_CLOSURE) {
+                JSValue bfunc1 = obj1->u.closure.func_bytecode;
+                JSValue bfunc2 = obj2->u.closure.func_bytecode;
+                if (bfunc1 != bfunc2)
+                    return FALSE;
+                
+                /* Compare upvalues */
+                JSFunctionBytecode *b = JS_VALUE_TO_PTR(bfunc1);
+                int ext_vars_len = 0;
+                if (b->ext_vars != JS_NULL) {
+                    JSValueArray *ext_vars = JS_VALUE_TO_PTR(b->ext_vars);
+                    ext_vars_len = ext_vars->size / 2;
+                }
+                for (int i = 0; i < ext_vars_len; i++) {
+                    JSVarRef *v1 = JS_VALUE_TO_PTR(obj1->u.closure.var_refs[i]);
+                    JSVarRef *v2 = JS_VALUE_TO_PTR(obj2->u.closure.var_refs[i]);
+                    JSValue val1 = v1->is_detached ? v1->u.value : *v1->u.pvalue;
+                    JSValue val2 = v2->is_detached ? v2->u.value : *v2->u.pvalue;
+                    if (!js_strict_eq(ctx, val1, val2))
+                        return FALSE;
+                }
+                return TRUE;
+            }
+
             if (obj1->class_id != JS_CLASS_OBJECT)
                 return op1 == op2; /* fallback to reference identity for non-simple objects */
 
             /* Recursive comparison of properties for simple objects */
-            JSValue keys1, keys2;
-            JSValueArray *karr1, *karr2;
+            JSValue keys1 = JS_UNDEFINED, keys2 = JS_UNDEFINED;
+            JSValueArray *karr1;
             BOOL same = TRUE;
+            JSGCRef op1_ref, op2_ref, keys1_ref, keys2_ref;
 
-            keys1 = js_object_keys(ctx, NULL, 1, &op1);
-            keys2 = js_object_keys(ctx, NULL, 1, &op2);
+            *JS_PushGCRef(ctx, &op1_ref) = op1;
+            *JS_PushGCRef(ctx, &op2_ref) = op2;
 
-            if (JS_IsException(keys1) || JS_IsException(keys2)) {
+            keys1 = js_object_keys(ctx, NULL, 1, &op1_ref.val);
+            if (JS_IsException(keys1)) {
+                same = FALSE;
+                goto done;
+            }
+            *JS_PushGCRef(ctx, &keys1_ref) = keys1;
+
+            keys2 = js_object_keys(ctx, NULL, 1, &op2_ref.val);
+            if (JS_IsException(keys2)) {
+                same = FALSE;
+                goto done_keys1;
+            }
+            *JS_PushGCRef(ctx, &keys2_ref) = keys2;
+
+            JSObject *obj_keys1 = JS_VALUE_TO_PTR(keys1);
+            JSObject *obj_keys2 = JS_VALUE_TO_PTR(keys2);
+
+            if (obj_keys1->u.array.len != obj_keys2->u.array.len) {
                 same = FALSE;
             } else {
-                karr1 = JS_VALUE_TO_PTR(((JSObject *)JS_VALUE_TO_PTR(keys1))->u.array.tab);
-                karr2 = JS_VALUE_TO_PTR(((JSObject *)JS_VALUE_TO_PTR(keys2))->u.array.tab);
-
-                if (karr1->size != karr2->size) {
-                    same = FALSE;
-                } else {
-                    for (int i = 0; i < karr1->size; i++) {
-                        JSValue val1, val2;
-                        val1 = JS_GetProperty(ctx, op1, karr1->arr[i]);
-                        val2 = JS_GetProperty(ctx, op2, karr2->arr[i]);
-                        if (!js_strict_eq(ctx, val1, val2)) {
-                            same = FALSE;
-                            break;
-                        }
+                karr1 = JS_VALUE_TO_PTR(obj_keys1->u.array.tab);
+                for (int i = 0; i < obj_keys1->u.array.len; i++) {
+                    JSValue val1, val2, prop;
+                    prop = JS_ToPropertyKey(ctx, karr1->arr[i]);
+                    if (JS_IsException(prop)) {
+                        same = FALSE;
+                        break;
+                    }
+                    val1 = JS_GetProperty(ctx, op1, prop);
+                    val2 = JS_GetProperty(ctx, op2, prop);
+                    if (!js_strict_eq(ctx, val1, val2)) {
+                        same = FALSE;
+                        break;
                     }
                 }
             }
+
+            JS_PopGCRef(ctx, &keys2_ref);
+        done_keys1:
+            JS_PopGCRef(ctx, &keys1_ref);
+        done:
+            JS_PopGCRef(ctx, &op2_ref);
+            JS_PopGCRef(ctx, &op1_ref);
             return same;
         }
     }
@@ -5075,6 +5128,8 @@ static int js_eq_get_type(JSContext *ctx, JSValue val)
             return JS_ETAG_NUMBER;
         case JS_MTAG_STRING:
             return JS_ETAG_STRING;
+        case JS_MTAG_DECIMAL:
+            return JS_ETAG_OBJECT; /* Treat as object for equality for now */
         default:
         case JS_MTAG_OBJECT:
             return JS_ETAG_OBJECT;
@@ -12258,6 +12313,9 @@ static int get_mblock_size(const void *ptr)
     case JS_MTAG_FUNCTION_BYTECODE:
         size = sizeof(JSFunctionBytecode);
         break;
+    case JS_MTAG_DECIMAL:
+        size = sizeof(JSDecimal);
+        break;
     default:
         size = 0;
         assert(0);
@@ -14205,9 +14263,14 @@ JSValue js_object_keys(JSContext *ctx, JSValue *this_val,
         array_len = 0;
     }
 
-    arr = JS_VALUE_TO_PTR(p->props);
-    prop_count = JS_VALUE_GET_INT(arr->arr[0]);
-    hash_mask = JS_VALUE_GET_INT(arr->arr[1]);
+    if (p->props == JS_NULL) {
+        prop_count = 0;
+        hash_mask = -1;
+    } else {
+        arr = JS_VALUE_TO_PTR(p->props);
+        prop_count = JS_VALUE_GET_INT(arr->arr[0]);
+        hash_mask = JS_VALUE_GET_INT(arr->arr[1]);
+    }
 
     alloc_size = array_len + prop_count;
 
@@ -15810,6 +15873,12 @@ JSValue js_decimal_constructor(JSContext *ctx, JSValue *this_val,
     significand[pos] = '\0';
 
     return JS_NewDecimal(ctx, significand, scale);
+}
+
+JSValue js_decimal_toString(JSContext *ctx, JSValue *this_val,
+                            int argc, JSValue *argv)
+{
+    return JS_ToString(ctx, *this_val);
 }
 
 /* global */

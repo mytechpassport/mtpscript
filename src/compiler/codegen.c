@@ -49,11 +49,10 @@ static void codegen_expression(mtpscript_expression_t *expr, mtpscript_string_t 
             mtpscript_string_append_cstr(out, ")");
             break;
         case MTPSCRIPT_EXPR_PIPE_EXPR:
-            // Left-associative: (left)(right)
+            // Left-associative: right(left)
+            codegen_expression(expr->data.pipe.right, out);
             mtpscript_string_append_cstr(out, "(");
             codegen_expression(expr->data.pipe.left, out);
-            mtpscript_string_append_cstr(out, ")(");
-            codegen_expression(expr->data.pipe.right, out);
             mtpscript_string_append_cstr(out, ")");
             break;
         case MTPSCRIPT_EXPR_AWAIT_EXPR:
@@ -95,20 +94,22 @@ static void codegen_declaration(mtpscript_declaration_t *decl, mtpscript_string_
         mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.api.path));
         mtpscript_string_append_cstr(out, "\n");
 
-        // Generate the function
-        mtpscript_string_append_cstr(out, "function ");
-        mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.api.handler->name));
-        mtpscript_string_append_cstr(out, "(");
-        for (size_t i = 0; i < decl->data.api.handler->params->size; i++) {
-            mtpscript_param_t *param = mtpscript_vector_get(decl->data.api.handler->params, i);
-            mtpscript_string_append_cstr(out, mtpscript_string_cstr(param->name));
-            if (i < decl->data.api.handler->params->size - 1) mtpscript_string_append_cstr(out, ", ");
+        if (decl->data.api.handler) {
+            // Generate the function
+            mtpscript_string_append_cstr(out, "function ");
+            mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.api.handler->name));
+            mtpscript_string_append_cstr(out, "(");
+            for (size_t i = 0; i < decl->data.api.handler->params->size; i++) {
+                mtpscript_param_t *param = mtpscript_vector_get(decl->data.api.handler->params, i);
+                mtpscript_string_append_cstr(out, mtpscript_string_cstr(param->name));
+                if (i < decl->data.api.handler->params->size - 1) mtpscript_string_append_cstr(out, ", ");
+            }
+            mtpscript_string_append_cstr(out, ") {\n");
+            for (size_t i = 0; i < decl->data.api.handler->body->size; i++) {
+                codegen_statement(mtpscript_vector_get(decl->data.api.handler->body, i), out);
+            }
+            mtpscript_string_append_cstr(out, "}\n\n");
         }
-        mtpscript_string_append_cstr(out, ") {\n");
-        for (size_t i = 0; i < decl->data.api.handler->body->size; i++) {
-            codegen_statement(mtpscript_vector_get(decl->data.api.handler->body, i), out);
-        }
-        mtpscript_string_append_cstr(out, "}\n\n");
     } else if (decl->kind == MTPSCRIPT_DECL_FUNCTION) {
         mtpscript_string_append_cstr(out, "function ");
         mtpscript_string_append_cstr(out, mtpscript_string_cstr(decl->data.function.name));

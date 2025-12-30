@@ -45,6 +45,7 @@ static mtpscript_error_t *typecheck_expression(mtpscript_expression_t *expr, mtp
             *type_out = type;
             break;
         }
+        // TODO: Add type checking for Option/Result construction and access
         default: break;
     }
     return NULL;

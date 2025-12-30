@@ -319,8 +319,13 @@ static const JSPropDef js_date[] = {
 static const JSClassDef js_date_class =
     JS_CLASS_DEF("Date", 7, js_date_constructor, JS_CLASS_DATE, js_date, NULL, NULL, NULL);
 
+static const JSPropDef js_decimal_proto[] = {
+    JS_CFUNC_DEF("toString", 0, js_decimal_toString),
+    JS_PROP_END,
+};
+
 static const JSClassDef js_decimal_class =
-    JS_CLASS_DEF("Decimal", 1, js_decimal_constructor, JS_CLASS_DECIMAL, NULL, NULL, NULL, NULL);
+    JS_CLASS_DEF("Decimal", 1, js_decimal_constructor, JS_CLASS_DECIMAL, NULL, js_decimal_proto, NULL, NULL);
 
 static const JSPropDef js_console[] = {
     JS_CFUNC_DEF("log", 1, js_print),

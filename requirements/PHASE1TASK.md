@@ -4,7 +4,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 
 ## 1. Compiler Frontend (P0)
 - [x] **Lexer**: C implementation of the MTPScript tokenizer.
-- [ ] **Parser**: Recursive descent parser with pipeline operator support (left-associative per §25) and `api` block parsing.
+- [x] **Parser**: Recursive descent parser with pipeline operator support (left-associative per §25) and `api` block parsing.
 - [ ] **AST**: Robust C struct representation including `await`, `api` declarations, and `Decimal` literals.
 - [ ] **Source Mapping**: Accurate line/column tracking for error reporting.
 
@@ -33,7 +33,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 ## 5. Code & Bytecode Generation (P1)
 - [x] **Basic JavaScript Lowering**: Translating MTPScript AST to JavaScript.
 - [ ] **JavaScript Lowering**: Translating MTPScript AST to deterministic, α-equivalent JS subset (§12).
-- [ ] **Pipeline Associativity**: Left-associative (`a |> b |> c ≡ (a |> b) |> c`) with α-equivalent JS generation (§25).
+- [x] **Pipeline Associativity**: Left-associative (`a |> b |> c ≡ (a |> b) |> c`) with α-equivalent JS generation (§25).
 - [ ] **Constraint Enforcement**: Ensuring no `eval`, `class`, `this`, `try/catch`, or loops in generated output (§12).
 - [ ] **MicroQuickJS Bytecode**: Compiling hardened JS into signed `.msqs` compatible binary.
 - [ ] **Integer Hardening**: Patching MicroQuickJS to forbid double-path for integers > 2⁵³-1 (§12).

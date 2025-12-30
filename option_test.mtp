@@ -1,0 +1,1 @@
+func test(x: Option<Int>): Int { return 42 }

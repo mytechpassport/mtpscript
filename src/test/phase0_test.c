@@ -56,6 +56,7 @@ bool test_snapshot_isolation_and_wipe() {
 
 // Helper to get bool from JSValue
 bool get_bool(JSContext *ctx, JSValue v) {
+    printf("get_bool: v=%llx\n", (long long)v);
     if (JS_IsBool(v)) {
         return JS_VALUE_GET_SPECIAL_VALUE(v);
     }
@@ -89,15 +90,20 @@ bool test_determinism_and_seed() {
     // Test structural equality of objects (no reference identity)
     const char *script = "({a: 1} == {a: 1})";
     JSValue res = JS_Eval(ctx, script, strlen(script), "test.js", 0);
+    if (JS_IsException(res)) {
+        JSValue exc = JS_GetException(ctx);
+        JSCStringBuf sbuf;
+        printf("Structural equality test threw exception: %s\n", JS_ToCString(ctx, exc, &sbuf));
+    }
     ASSERT(get_bool(ctx, res) == true, "Structural equality for objects failed");
 
     // Test structural equality of functions/closures
-    const char *script2 = "((x => x + 1) == (x => x + 1))";
+    const char *script2 = "((function(x) { return x + 1; }) == (function(x) { return x + 1; }))";
     JSValue res2 = JS_Eval(ctx, script2, strlen(script2), "test.js", 0);
     ASSERT(get_bool(ctx, res2) == true, "Structural equality for functions failed");
 
     // Test map key restrictions (functions excluded)
-    const char *script3 = "let m = new Map(); let f = () => {}; try { m.set(f, 1); false; } catch(e) { true; }";
+    const char *script3 = "var m = new Map(); var f = function() {}; try { m.set(f, 1); false; } catch(e) { true; }";
     JSValue res3 = JS_Eval(ctx, script3, strlen(script3), "test.js", 0);
     ASSERT(get_bool(ctx, res3) == true, "Functions should be excluded from Map keys");
 
@@ -116,7 +122,7 @@ bool test_gas_enforcement() {
     JS_SetGasLimit(ctx, 500);
 
     // Run a script that should exhaust gas
-    const char *script = "let a = 0; for(let i=0; i<1000; i++) { a += i; }";
+    const char *script = "var a = 0; for(var i=0; i<1000; i++) { a += i; }";
     JSValue res = JS_Eval(ctx, script, strlen(script), "test.js", 0);
     ASSERT(JS_IsException(res), "Should throw exception on gas exhaustion");
 
@@ -155,12 +161,13 @@ bool test_decimal_support() {
     ASSERT(strcmp(s, "123.456") == 0, "Decimal serialization failed");
 
     // Test Decimal arithmetic in JS
-    const char *script = "let a = new Decimal('10.50'); let b = new Decimal('5.25'); (a + b).toString()";
+    const char *script = "var a = new Decimal('10.50'); var b = new Decimal('5.25'); (a + b).toString()";
     JSValue res = JS_Eval(ctx, script, strlen(script), "test.js", 0);
     if (JS_IsException(res)) {
         JSValue exc = JS_GetException(ctx);
         const char *msg = JS_ToCString(ctx, exc, &sbuf);
         printf("Decimal addition threw exception: %s\n", msg);
+        ASSERT(false, "Decimal addition in JS failed");
     } else {
         const char *s2 = JS_ToCString(ctx, res, &sbuf);
         printf("Decimal addition result: %s\n", s2);
