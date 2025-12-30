@@ -132,6 +132,21 @@ mtpscript_error_t *mtpscript_inject_gas_limit(const char *js_code, uint64_t gas_
 void mtpscript_secure_memory_wipe(void *ptr, size_t size);
 void mtpscript_zero_cross_request_state(void);
 
+// Reproducible builds (§18)
+typedef struct {
+    char *build_id;
+    char *timestamp;
+    char *source_hash;
+    char *compiler_version;
+    char *build_environment;
+    uint8_t signature[64];
+} mtpscript_build_info_t;
+
+mtpscript_build_info_t *mtpscript_build_info_create(const char *source_hash, const char *compiler_version);
+void mtpscript_build_info_free(mtpscript_build_info_t *build_info);
+mtpscript_error_t *mtpscript_build_info_sign(mtpscript_build_info_t *build_info, const mtpscript_ecdsa_public_key_t *key);
+mtpscript_string_t *mtpscript_build_info_to_json(const mtpscript_build_info_t *build_info);
+
 // Initialize the standard library in a JS context
 mtpscript_error_t *mtpscript_stdlib_init(void *js_context);
 

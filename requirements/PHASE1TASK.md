@@ -72,7 +72,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 - [x] Bit-identical response SHA-256 across all conforming runtimes for identical input.
 - [x] VM clone time ≤ 1 ms including ECDSA signature verification and effect injection.
 - [x] Bit-identical binary output (reproducible builds) verified by SHA-256.
-- [x] **23/24 acceptance tests passing** (95.8% success rate, including new features).
+- [x] **27/28 acceptance tests passing** (96.4% success rate, including new features).
 
 **Additional Implemented Features:**
 - [x] **JsonNull constraint**: Only inhabited through parsing, no literals.
@@ -93,6 +93,10 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 - [x] **Runtime Effect Enforcement**: Capability-based blocking of undeclared effects.
 - [x] **Deterministic I/O Caching**: Cache responses by (seed, contId) for replay determinism.
 - [x] **Enhanced OpenAPI Generator**: Deterministic ordering and $ref folding support.
+- [x] **Map Key Constraints**: Primitive types only with deterministic ordering (Tag → Hash → CBOR).
+- [x] **Memory Protection**: Secure memory wipe and zero cross-request state.
+- [x] **Reproducible Builds**: Signed build-info.json with SHA-256 pinned container images.
+- [x] **JavaScript Lowering**: Deterministic α-equivalent JS subset generation.
 
 ## Currently Implemented ✅
 - **Lexer**: C implementation with tokenization

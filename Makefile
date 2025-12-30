@@ -76,7 +76,7 @@ MTPJS_BUILD_FLAGS=-m32
 endif
 
 PROGS=mtpjs$(EXE) example$(EXE) mtpsc$(EXE)
-TEST_PROGS=dtoa_test libm_test mtpsc_test phase0_test phase0_comprehensive_test mtpsc_acceptance
+TEST_PROGS=dtoa_test libm_test mtpsc_test phase0_regression_test mtpsc_acceptance
 
 all: $(PROGS)
 
@@ -104,20 +104,12 @@ MTPSC_ACCEPTANCE_OBJS = $(MTPSC_ACCEPTANCE_SOURCES:.c=.o)
 mtpsc_acceptance$(EXE): $(MTPSC_ACCEPTANCE_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-PHASE0_TEST_SOURCES = src/test/phase0_test.c
-PHASE0_TEST_OBJS = $(PHASE0_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/mtpscript.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/stdlib/runtime.o
+PHASE0_REGRESSION_TEST_SOURCES = src/test/phase0_regression_test.c
+PHASE0_REGRESSION_TEST_OBJS = $(PHASE0_REGRESSION_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/mtpscript.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/stdlib/runtime.o
 
-PHASE0_COMP_TEST_SOURCES = src/test/phase0_comprehensive_test.c
-PHASE0_COMP_TEST_OBJS = $(PHASE0_COMP_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
+src/test/phase0_regression_test.o: src/test/phase0_regression_test.c mtpjs_stdlib.h
 
-src/test/phase0_test.o: src/test/phase0_test.c mtpjs_stdlib.h
-
-src/test/phase0_comprehensive_test.o: src/test/phase0_comprehensive_test.c mtpjs_stdlib.h
-
-phase0_test$(EXE): $(PHASE0_TEST_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-phase0_comprehensive_test$(EXE): $(PHASE0_COMP_TEST_OBJS)
+phase0_regression_test$(EXE): $(PHASE0_REGRESSION_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 mquickjs.o: mquickjs_atom.h
@@ -162,7 +154,7 @@ test: mtpjs example mtpsc_test
 	./mtpjs -b test_builtin.bin
 	./example tests/test_rect.js
 	./mtpsc_test
-	./phase0_test
+	./phase0_regression_test
 	./mtpsc_acceptance
 
 microbench: mtpjs

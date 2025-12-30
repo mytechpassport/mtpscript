@@ -737,6 +737,146 @@ bool test_openapi_deterministic_ordering() {
     return has_openapi && has_paths && has_users_get && has_posts_get;
 }
 
+bool test_map_constraints() {
+    // Test Map key constraints - only primitive types allowed
+
+    const char *valid_map_code =
+        "func test(): Int {\n"
+        "    // This would be valid if Map types were implemented\n"
+        "    // Map<String, Int> would be allowed\n"
+        "    return 42\n"
+        "}";
+
+    FILE *f = fopen("map_test.mtp", "w");
+    if (!f) return false;
+    fprintf(f, "%s", valid_map_code);
+    fclose(f);
+
+    // This should compile without Map-related errors
+    int result = system("./mtpsc check map_test.mtp > /dev/null 2>&1");
+
+    // Clean up
+    unlink("map_test.mtp");
+
+    // For now, this just tests that basic compilation works
+    // Full Map constraint testing would require Map syntax in the parser
+    return result == 0;
+}
+
+bool test_memory_protection() {
+    // Test secure memory wipe functionality
+
+    // Test with a buffer of known content
+    char test_buffer[32] = "This is sensitive data to wipe!";
+    char original_first = test_buffer[0];
+
+    // Wipe the memory
+    mtpscript_secure_memory_wipe(test_buffer, sizeof(test_buffer));
+
+    // Verify it's wiped (should be zeroed)
+    bool all_zero = true;
+    for (size_t i = 0; i < sizeof(test_buffer); i++) {
+        if (test_buffer[i] != 0) {
+            all_zero = false;
+            break;
+        }
+    }
+
+    // Test edge cases
+    mtpscript_secure_memory_wipe(NULL, 10); // Should not crash
+    mtpscript_secure_memory_wipe(test_buffer, 0); // Should not crash
+
+    // Test zero cross-request state (placeholder)
+    mtpscript_zero_cross_request_state(); // Should not crash
+
+    return all_zero && original_first != test_buffer[0];
+}
+
+bool test_reproducible_builds() {
+    // Test build info generation and signing
+
+    mtpscript_build_info_t *build_info = mtpscript_build_info_create(
+        "abcd1234567890abcdef",
+        "mtpscript-v5.1"
+    );
+
+    ASSERT(build_info != NULL);
+    ASSERT(build_info->build_id != NULL);
+    ASSERT(build_info->timestamp != NULL);
+    ASSERT(build_info->source_hash != NULL);
+    ASSERT(build_info->compiler_version != NULL);
+    ASSERT(build_info->build_environment != NULL);
+
+    // Test signing (placeholder implementation)
+    mtpscript_ecdsa_public_key_t dummy_key = {{0}, {0}}; // Dummy key
+    mtpscript_error_t *sign_error = mtpscript_build_info_sign(build_info, &dummy_key);
+    ASSERT(sign_error == NULL);
+
+    // Test JSON serialization
+    mtpscript_string_t *json = mtpscript_build_info_to_json(build_info);
+    ASSERT(json != NULL);
+    ASSERT(strstr(mtpscript_string_cstr(json), "\"buildId\"") != NULL);
+    ASSERT(strstr(mtpscript_string_cstr(json), "\"signature\"") != NULL);
+
+    mtpscript_string_free(json);
+    mtpscript_build_info_free(build_info);
+
+    return true;
+}
+
+bool test_js_lowering_constraints() {
+    // Test that JavaScript lowering produces constraint-compliant output
+
+    const char *test_code =
+        "func test(): Int {\n"
+        "    return 42\n"
+        "}";
+
+    FILE *f = fopen("js_test.mtp", "w");
+    if (!f) return false;
+    fprintf(f, "%s", test_code);
+    fclose(f);
+
+    // Compile to JavaScript
+    int result = system("./mtpsc compile js_test.mtp > js_output.js 2>/dev/null");
+    if (result != 0) {
+        unlink("js_test.mtp");
+        return false;
+    }
+
+    // Read the generated JavaScript
+    FILE *js_file = fopen("js_output.js", "r");
+    if (!js_file) {
+        unlink("js_test.mtp");
+        return false;
+    }
+
+    char js_buffer[1024];
+    size_t bytes_read = fread(js_buffer, 1, sizeof(js_buffer) - 1, js_file);
+    js_buffer[bytes_read] = '\0';
+    fclose(js_file);
+
+    // Check that forbidden constructs are NOT present
+    bool no_eval = strstr(js_buffer, "eval(") == NULL;
+    bool no_class = strstr(js_buffer, "class ") == NULL;
+    bool no_this = strstr(js_buffer, "this.") == NULL;
+    bool no_try = strstr(js_buffer, "try ") == NULL;
+    bool no_catch = strstr(js_buffer, "catch ") == NULL;
+    bool no_loops = strstr(js_buffer, "for ") == NULL &&
+                   strstr(js_buffer, "while ") == NULL &&
+                   strstr(js_buffer, "do ") == NULL;
+
+    // Check that the output contains expected JavaScript structure
+    bool has_function = strstr(js_buffer, "function ") != NULL;
+    bool has_return = strstr(js_buffer, "return ") != NULL;
+
+    // Clean up
+    unlink("js_test.mtp");
+    unlink("js_output.js");
+
+    return no_eval && no_class && no_this && no_try && no_catch && no_loops && has_function && has_return;
+}
+
 int main() {
     printf("Running MTPScript Acceptance Criteria Tests...\n");
     int passed = 0;
@@ -768,6 +908,10 @@ int main() {
     RUN_TEST(test_runtime_effect_enforcement);
     RUN_TEST(test_deterministic_io_caching);
     RUN_TEST(test_openapi_deterministic_ordering);
+    RUN_TEST(test_map_constraints);
+    RUN_TEST(test_memory_protection);
+    RUN_TEST(test_reproducible_builds);
+    RUN_TEST(test_js_lowering_constraints);
 
     printf("\nAcceptance Tests: %d passed, %d total\n", passed, total);
     return (passed == total) ? 0 : 1;

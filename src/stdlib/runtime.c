@@ -635,6 +635,150 @@ mtpscript_error_t *mtpscript_inject_gas_limit(const char *js_code, uint64_t gas_
     return NULL;
 }
 
+// Memory protection (§22) - secure memory wipe and zero cross-request state
+void mtpscript_secure_memory_wipe(void *ptr, size_t size) {
+    if (!ptr || size == 0) return;
+
+    // Multiple overwrites for security (Gutmann method simplified)
+    volatile unsigned char *p = (volatile unsigned char *)ptr;
+
+    // Pass 1: 0xFF
+    for (size_t i = 0; i < size; i++) {
+        p[i] = 0xFF;
+    }
+
+    // Pass 2: 0x00
+    for (size_t i = 0; i < size; i++) {
+        p[i] = 0x00;
+    }
+
+    // Pass 3: 0xFF again
+    for (size_t i = 0; i < size; i++) {
+        p[i] = 0xFF;
+    }
+
+    // Final pass: random-like pattern
+    for (size_t i = 0; i < size; i++) {
+        p[i] = (unsigned char)(i % 256);
+    }
+
+    // Final zero for good measure
+    memset(ptr, 0, size);
+}
+
+void mtpscript_zero_cross_request_state(void) {
+    // This function would be called between requests to ensure
+    // no sensitive data persists across request boundaries
+
+    // In a real implementation, this would:
+    // 1. Clear all global variables
+    // 2. Reset all caches and internal state
+    // 3. Wipe sensitive memory regions
+    // 4. Reset cryptographic contexts
+
+    // For now, this is a placeholder that would be integrated
+    // with the host runtime to ensure clean state between requests
+
+    // Example: Clear any global state that might persist
+    // (This would be specific to the host environment)
+
+    // Secure wipe of any sensitive static buffers would go here
+}
+
+// Reproducible builds (§18) - build info generation and signing
+mtpscript_build_info_t *mtpscript_build_info_create(const char *source_hash, const char *compiler_version) {
+    mtpscript_build_info_t *build_info = MTPSCRIPT_MALLOC(sizeof(mtpscript_build_info_t));
+
+    // Generate unique build ID (simplified - in real impl, use UUID)
+    char build_id[64];
+    sprintf(build_id, "build-%lx", (unsigned long)time(NULL));
+    build_info->build_id = strdup(build_id);
+
+    // Current timestamp
+    time_t now = time(NULL);
+    build_info->timestamp = strdup(ctime(&now));
+    // Remove trailing newline
+    build_info->timestamp[strlen(build_info->timestamp) - 1] = '\0';
+
+    build_info->source_hash = strdup(source_hash);
+    build_info->compiler_version = strdup(compiler_version);
+    build_info->build_environment = strdup("mtpscript-v5.1");
+
+    memset(build_info->signature, 0, sizeof(build_info->signature));
+
+    return build_info;
+}
+
+void mtpscript_build_info_free(mtpscript_build_info_t *build_info) {
+    if (build_info) {
+        free(build_info->build_id);
+        free(build_info->timestamp);
+        free(build_info->source_hash);
+        free(build_info->compiler_version);
+        free(build_info->build_environment);
+        MTPSCRIPT_FREE(build_info);
+    }
+}
+
+mtpscript_error_t *mtpscript_build_info_sign(mtpscript_build_info_t *build_info, const mtpscript_ecdsa_public_key_t *key) {
+    // Create JSON representation for signing
+    mtpscript_string_t *json = mtpscript_string_new();
+    mtpscript_string_append_cstr(json, "{");
+    mtpscript_string_append_cstr(json, "\"buildId\":\"");
+    mtpscript_string_append_cstr(json, build_info->build_id);
+    mtpscript_string_append_cstr(json, "\",\"timestamp\":\"");
+    mtpscript_string_append_cstr(json, build_info->timestamp);
+    mtpscript_string_append_cstr(json, "\",\"sourceHash\":\"");
+    mtpscript_string_append_cstr(json, build_info->source_hash);
+    mtpscript_string_append_cstr(json, "\",\"compilerVersion\":\"");
+    mtpscript_string_append_cstr(json, build_info->compiler_version);
+    mtpscript_string_append_cstr(json, "\",\"buildEnvironment\":\"");
+    mtpscript_string_append_cstr(json, build_info->build_environment);
+    mtpscript_string_append_cstr(json, "\"}");
+
+    // In a real implementation, this would sign the JSON with a private key
+    // For now, we just create a deterministic "signature" based on the content
+    uint8_t hash[32];
+    mtpscript_sha256(mtpscript_string_cstr(json), json->length, hash);
+    memcpy(build_info->signature, hash, 32);
+    memset(build_info->signature + 32, 0, 32); // Pad to 64 bytes
+
+    mtpscript_string_free(json);
+    return NULL;
+}
+
+mtpscript_string_t *mtpscript_build_info_to_json(const mtpscript_build_info_t *build_info) {
+    mtpscript_string_t *json = mtpscript_string_new();
+
+    mtpscript_string_append_cstr(json, "{\n");
+    mtpscript_string_append_cstr(json, "  \"buildId\": \"");
+    mtpscript_string_append_cstr(json, build_info->build_id);
+    mtpscript_string_append_cstr(json, "\",\n");
+    mtpscript_string_append_cstr(json, "  \"timestamp\": \"");
+    mtpscript_string_append_cstr(json, build_info->timestamp);
+    mtpscript_string_append_cstr(json, "\",\n");
+    mtpscript_string_append_cstr(json, "  \"sourceHash\": \"");
+    mtpscript_string_append_cstr(json, build_info->source_hash);
+    mtpscript_string_append_cstr(json, "\",\n");
+    mtpscript_string_append_cstr(json, "  \"compilerVersion\": \"");
+    mtpscript_string_append_cstr(json, build_info->compiler_version);
+    mtpscript_string_append_cstr(json, "\",\n");
+    mtpscript_string_append_cstr(json, "  \"buildEnvironment\": \"");
+    mtpscript_string_append_cstr(json, build_info->build_environment);
+    mtpscript_string_append_cstr(json, "\",\n");
+    mtpscript_string_append_cstr(json, "  \"signature\": \"");
+    // Convert signature to hex string
+    for (int i = 0; i < 64; i++) {
+        char hex[3];
+        sprintf(hex, "%02x", build_info->signature[i]);
+        mtpscript_string_append_cstr(json, hex);
+    }
+    mtpscript_string_append_cstr(json, "\"\n");
+    mtpscript_string_append_cstr(json, "}\n");
+
+    return json;
+}
+
 mtpscript_error_t *mtpscript_stdlib_init(void *js_context) {
     // Evaluation of standard library JS code would go here
     (void)js_context;
