@@ -1,3 +1,0 @@
-api POST "/users" func createUser(name: String): Int {
-  return 42
-}

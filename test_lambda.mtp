@@ -1,7 +1,0 @@
-func hello() {
-    return "Hello from MTPScript Lambda!"
-}
-
-func main() {
-    respond json({ message: hello() })
-}

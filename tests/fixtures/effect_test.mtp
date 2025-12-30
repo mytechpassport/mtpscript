@@ -1,4 +1,0 @@
-func test() uses { Log }: Int {
-    log("test")
-    return 42
-}

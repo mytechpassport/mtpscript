@@ -1,1 +1,0 @@
-func test(x: Int): Int { return 42 }

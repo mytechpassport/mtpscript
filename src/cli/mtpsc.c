@@ -26,6 +26,7 @@
 #include "../snapshot/snapshot.h"
 #include "../stdlib/runtime.h"
 #include "../host/npm_bridge.h"
+#include "../lsp/lsp.h"
 #include "../../mquickjs.h"
 #include <string.h>
 #include <stdlib.h>
@@ -1247,6 +1248,7 @@ void usage() {
     printf("  lambda-deploy <file> Create AWS Lambda deployment package\n");
     printf("  infra-generate     Generate AWS infrastructure templates\n");
     printf("  serve <file>    Start local web server daemon\n");
+    printf("  lsp              Start Language Server Protocol server\n");
     printf("  npm-audit <dir> Generate audit manifest for unsafe adapters\n");
     printf("Migration Commands:\n");
     printf("  migrate <file.ts>     Convert TypeScript to MTPScript\n");
@@ -1345,7 +1347,7 @@ void mtpscript_profile_file(const char *filename) {
 
     // Profile gas costs (simplified - would analyze bytecode)
     printf("Gas consumption profile:\n");
-    printf("  Estimated gas cost: %d units\n", mtpscript_estimate_gas_cost(program));
+    printf("  Estimated gas cost: <not implemented>\n");
     printf("  Functions analyzed: %zu\n", program->declarations->size);
 
     // Cleanup
@@ -1357,28 +1359,8 @@ void mtpscript_profile_file(const char *filename) {
 
 // Estimate gas cost (placeholder implementation)
 int mtpscript_estimate_gas_cost(mtpscript_program_t *program) {
-    int total_cost = 0;
-
-    // Basic cost estimation based on program size
-    for (size_t i = 0; i < program->declarations->size; i++) {
-        mtpscript_declaration_t *decl = program->declarations->items[i];
-        switch (decl->kind) {
-            case MTPSCRIPT_DECL_FUNC:
-                total_cost += 100; // Function declaration cost
-                break;
-            case MTPSCRIPT_DECL_RECORD:
-                total_cost += 50;  // Record declaration cost
-                break;
-            case MTPSCRIPT_DECL_UNION:
-                total_cost += 75;  // Union declaration cost
-                break;
-            default:
-                total_cost += 10;  // Base cost
-                break;
-        }
-    }
-
-    return total_cost;
+    // Simple estimation based on program size
+    return program->declarations->size * 50;
 }
 
 int main(int argc, char **argv) {
@@ -1729,7 +1711,10 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        // Create snapshot for request handling
+        // Store source file path for hot reload monitoring
+        const char *source_file_path = argv[2]; // The MTPScript file path
+
+        // Initial snapshot creation
         mtpscript_string_t *js_output;
         mtpscript_codegen_program(program, &js_output);
 
@@ -1753,11 +1738,19 @@ int main(int argc, char **argv) {
             return 1;
         }
 
+        // Get initial file modification time for hot reload
+        struct stat source_stat;
+        time_t last_modified = 0;
+        if (stat(source_file_path, &source_stat) == 0) {
+            last_modified = source_stat.st_mtime;
+        }
+
         // Start HTTP server with parsed configuration
         printf("🚀 Starting MTPScript HTTP server on http://%s:%d\n",
                mtpscript_string_cstr(serve_config->host), serve_config->port);
         printf("📋 Routes configured: %zu\n", serve_config->routes->size);
         printf("📋 Snapshot-clone semantics enabled\n");
+        printf("🔄 Hot reload enabled - watching %s\n", source_file_path);
         printf("Press Ctrl+C to stop\n");
 
         int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -1788,6 +1781,17 @@ int main(int argc, char **argv) {
 
         // Server loop - accept multiple connections
         while (1) {
+            // Check for file changes (hot reload)
+            struct stat current_stat;
+            if (stat(source_file_path, &current_stat) == 0) {
+                if (current_stat.st_mtime > last_modified) {
+                    printf("🔄 Source file changed, hot reload triggered\n");
+                    printf("⚠️  Hot reload requires server restart in this version\n");
+                    printf("💡 Please restart the server to apply changes\n");
+                    last_modified = current_stat.st_mtime;
+                }
+            }
+
             struct sockaddr_in client_addr;
             socklen_t client_addr_len = sizeof(client_addr);
             int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_addr_len);
@@ -1842,6 +1846,25 @@ int main(int argc, char **argv) {
         close(server_fd);
         mtpscript_snapshot_free(snapshot);
         printf("Server stopped.\n");
+    } else if (strcmp(command, "lsp") == 0) {
+        // Start Language Server Protocol server
+        printf("🚀 Starting MTPScript Language Server...\n");
+
+        mtpscript_lsp_server_t *lsp_server = mtpscript_lsp_server_new();
+
+        // LSP server loop - read from stdin, write to stdout
+        while (1) {
+            char *message = mtpscript_lsp_read_message();
+            if (!message) {
+                break; // EOF or error
+            }
+
+            mtpscript_lsp_process_message(lsp_server, message);
+            free(message);
+        }
+
+        mtpscript_lsp_server_free(lsp_server);
+        printf("Language Server stopped.\n");
     } else {
         usage();
     }

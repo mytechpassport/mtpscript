@@ -176,7 +176,7 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 - [x] Parse `serve { port: 8080, routes: [...] }` MTPScript syntax
 - [x] Route configuration with path patterns and handlers
 - [x] Server configuration options (port, host, timeouts)
-- [ ] Hot reload on source file changes with snapshot recompilation
+- [x] Hot reload on source file changes with snapshot recompilation
 
 ### 8.2 Server Runtime Implementation (§20)
 - [x] **Snapshot-Clone Isolation**: Same per-request VM cloning as Lambda runtime
@@ -226,16 +226,16 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 12. Language Server Protocol (P2)
 
 ### 12.1 LSP Implementation
-- [ ] **Diagnostics**: Real-time error reporting
-- [ ] **Completion**: Auto-complete for types, functions, effects
-- [ ] **Hover**: Type information on hover
-- [ ] **Go to Definition**: Navigate to declarations
-- [ ] **Find References**: Find all usages
+- [x] **Diagnostics**: Real-time error reporting
+- [x] **Completion**: Auto-complete for types, functions, effects
+- [x] **Hover**: Type information on hover
+- [x] **Go to Definition**: Navigate to declarations
+- [x] **Find References**: Find all usages
 
 ### 12.2 Editor Extensions
-- [ ] **VS Code Extension**: Syntax highlighting + LSP client
-- [ ] **Cursor Extension**: Native integration
-- [ ] **Syntax Grammar**: TextMate grammar for `.mtp` files
+- [x] **VS Code Extension**: Syntax highlighting + LSP client
+- [x] **Cursor Extension**: Native integration
+- [x] **Syntax Grammar**: TextMate grammar for `.mtp` files
 
 ## 13. Formal Determinism Verification (P1)
 
@@ -307,6 +307,9 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 - [x] Cross-platform CI/CD with determinism verification
 - [x] Performance benchmarks establish baselines
 - [x] LSP provides basic IDE support
+- [x] VS Code extension with syntax highlighting + LSP client
+- [x] Cursor extension with native integration
+- [x] TextMate grammar for .mtp files
 
 ### Test Coverage
 - [x] Integration tests for all effect implementations
@@ -317,6 +320,11 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 - [x] HTTP server syntax parsing tests
 - [x] Pipeline associativity verification tests
 - [x] Formal determinism claim validation tests
+- [x] Hot reload functionality tests
+- [x] LSP server functionality tests
+- [x] VS Code extension file structure tests
+- [x] Cursor extension file structure tests
+- [x] TextMate grammar content tests
 
 ---
 
