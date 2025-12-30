@@ -27,7 +27,7 @@ endif
 
 HOST_CC=gcc
 CC=$(CROSS_PREFIX)gcc
-CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include -Isrc/compiler -Isrc/decimal -Isrc/snapshot -Isrc/stdlib -Isrc/effects -Isrc/host
+CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include -I. -Isrc/compiler -Isrc/decimal -Isrc/snapshot -Isrc/stdlib -Isrc/effects -Isrc/host
 HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -Isrc/compiler
 ifdef CONFIG_WERROR
 CFLAGS+=-Werror
@@ -106,6 +106,8 @@ mtpsc_acceptance$(EXE): $(MTPSC_ACCEPTANCE_OBJS)
 
 PHASE0_TEST_SOURCES = src/test/phase0_test.c
 PHASE0_TEST_OBJS = $(PHASE0_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
+
+src/test/phase0_test.o: src/test/phase0_test.c mtpjs_stdlib.h
 
 phase0_test$(EXE): $(PHASE0_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)

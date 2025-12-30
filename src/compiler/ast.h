@@ -25,6 +25,7 @@ typedef enum {
     MTPSCRIPT_TYPE_BOOL,
     MTPSCRIPT_TYPE_DECIMAL,
     MTPSCRIPT_TYPE_OPTION,
+    MTPSCRIPT_TYPE_RESULT,
     MTPSCRIPT_TYPE_LIST,
     MTPSCRIPT_TYPE_MAP,
     MTPSCRIPT_TYPE_CUSTOM
@@ -35,7 +36,8 @@ typedef struct mtpscript_type_t {
     mtpscript_string_t *name;
     struct mtpscript_type_t *inner; // For Option, List
     struct mtpscript_type_t *key;   // For Map
-    struct mtpscript_type_t *value; // For Map
+    struct mtpscript_type_t *value; // For Map, Result error type
+    struct mtpscript_type_t *error; // For Result error type
 } mtpscript_type_t;
 
 // Expressions
@@ -47,7 +49,9 @@ typedef enum {
     MTPSCRIPT_EXPR_VARIABLE,
     MTPSCRIPT_EXPR_BINARY_EXPR,
     MTPSCRIPT_EXPR_FUNCTION_CALL,
-    MTPSCRIPT_EXPR_BLOCK_EXPR
+    MTPSCRIPT_EXPR_BLOCK_EXPR,
+    MTPSCRIPT_EXPR_PIPE_EXPR,    // pipeline operator
+    MTPSCRIPT_EXPR_AWAIT_EXPR    // await expression
 } mtpscript_expression_kind_t;
 
 typedef struct mtpscript_expression_t {
@@ -73,6 +77,13 @@ typedef struct mtpscript_expression_t {
         struct {
             mtpscript_vector_t *statements; // mtpscript_statement_t
         } block;
+        struct {
+            struct mtpscript_expression_t *left;
+            struct mtpscript_expression_t *right;
+        } pipe;  // pipeline expression
+        struct {
+            struct mtpscript_expression_t *expression;
+        } await;  // await expression
     } data;
 } mtpscript_expression_t;
 

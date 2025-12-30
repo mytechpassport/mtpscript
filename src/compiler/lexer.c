@@ -86,6 +86,7 @@ mtpscript_error_t *mtpscript_lexer_tokenize(mtpscript_lexer_t *lexer, mtpscript_
             mtpscript_token_type_t type = MTPSCRIPT_TOKEN_IDENTIFIER;
             if (strcmp(lexeme, "func") == 0) type = MTPSCRIPT_TOKEN_FUNC;
             else if (strcmp(lexeme, "api") == 0) type = MTPSCRIPT_TOKEN_API;
+            else if (strcmp(lexeme, "uses") == 0) type = MTPSCRIPT_TOKEN_USES;
             else if (strcmp(lexeme, "let") == 0) type = MTPSCRIPT_TOKEN_LET;
             else if (strcmp(lexeme, "return") == 0) type = MTPSCRIPT_TOKEN_RETURN;
             else if (strcmp(lexeme, "if") == 0) type = MTPSCRIPT_TOKEN_IF;
@@ -124,6 +125,14 @@ mtpscript_error_t *mtpscript_lexer_tokenize(mtpscript_lexer_t *lexer, mtpscript_
                         continue;
                     }
                     type = MTPSCRIPT_TOKEN_MINUS; break;
+                case '|':
+                    if (peek(lexer) == '>') {
+                        advance(lexer);
+                        mtpscript_vector_push(tokens, create_token(lexer, MTPSCRIPT_TOKEN_PIPE, "|>"));
+                        continue;
+                    }
+                    // Handle single | if needed, for now skip
+                    continue;
                 case '*': type = MTPSCRIPT_TOKEN_STAR; break;
                 case '/': type = MTPSCRIPT_TOKEN_SLASH; break;
                 case '=': type = MTPSCRIPT_TOKEN_EQUALS; break;

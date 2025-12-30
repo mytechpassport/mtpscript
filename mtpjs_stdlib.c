@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "mquickjs_priv.h"
 #include "mquickjs_build.h"
 
 /* defined in mqjs_example.c */
@@ -304,13 +305,22 @@ static const JSClassDef js_regexp_class =
 
 /* other objects */
 
+#if !MTPSCRIPT_DETERMINISTIC
 static const JSPropDef js_date[] = {
     JS_CFUNC_DEF("now", 0, js_date_now),
     JS_PROP_END,
 };
+#else
+static const JSPropDef js_date[] = {
+    JS_PROP_END,
+};
+#endif
 
 static const JSClassDef js_date_class =
     JS_CLASS_DEF("Date", 7, js_date_constructor, JS_CLASS_DATE, js_date, NULL, NULL, NULL);
+
+static const JSClassDef js_decimal_class =
+    JS_CLASS_DEF("Decimal", 1, js_decimal_constructor, JS_CLASS_DECIMAL, NULL, NULL, NULL, NULL);
 
 static const JSPropDef js_console[] = {
     JS_CFUNC_DEF("log", 1, js_print),
@@ -320,10 +330,16 @@ static const JSPropDef js_console[] = {
 static const JSClassDef js_console_obj =
     JS_OBJECT_DEF("Console", js_console);
 
+#if !MTPSCRIPT_DETERMINISTIC
 static const JSPropDef js_performance[] = {
     JS_CFUNC_DEF("now", 0, js_performance_now),
     JS_PROP_END,
 };
+#else
+static const JSPropDef js_performance[] = {
+    JS_PROP_END,
+};
+#endif
 static const JSClassDef js_performance_obj =
     JS_OBJECT_DEF("Performance", js_performance);
 
@@ -336,6 +352,7 @@ static const JSPropDef js_global_object[] = {
     JS_PROP_CLASS_DEF("Array", &js_array_class),
     JS_PROP_CLASS_DEF("Math", &js_math_obj),
     JS_PROP_CLASS_DEF("Date", &js_date_class),
+    JS_PROP_CLASS_DEF("Decimal", &js_decimal_class),
     JS_PROP_CLASS_DEF("JSON", &js_json_obj),
     JS_PROP_CLASS_DEF("RegExp", &js_regexp_class),
 
@@ -385,9 +402,11 @@ static const JSPropDef js_global_object[] = {
     JS_PROP_CLASS_DEF("FilledRectangle", &js_filled_rectangle_class),
 #else
     JS_CFUNC_DEF("gc", 0, js_gc),
+#if !MTPSCRIPT_DETERMINISTIC
     JS_CFUNC_DEF("load", 1, js_load),
     JS_CFUNC_DEF("setTimeout", 2, js_setTimeout),
     JS_CFUNC_DEF("clearTimeout", 1, js_clearTimeout),
+#endif
 #endif
     JS_PROP_END,
 };
@@ -405,5 +424,6 @@ static const JSPropDef js_c_function_decl[] = {
 
 int main(int argc, char **argv)
 {
+    fprintf(stderr, "MTPSCRIPT_DETERMINISTIC: %d\n", MTPSCRIPT_DETERMINISTIC);
     return build_atoms("js_stdlib", js_global_object, js_c_function_decl, argc, argv);
 }

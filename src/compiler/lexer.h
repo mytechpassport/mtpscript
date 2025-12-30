@@ -22,6 +22,7 @@ typedef enum {
     // Keywords
     MTPSCRIPT_TOKEN_FUNC,
     MTPSCRIPT_TOKEN_API,
+    MTPSCRIPT_TOKEN_USES,
     MTPSCRIPT_TOKEN_LET,
     MTPSCRIPT_TOKEN_RETURN,
     MTPSCRIPT_TOKEN_IF,
@@ -43,6 +44,7 @@ typedef enum {
     MTPSCRIPT_TOKEN_MINUS,
     MTPSCRIPT_TOKEN_STAR,
     MTPSCRIPT_TOKEN_SLASH,
+    MTPSCRIPT_TOKEN_PIPE,  // |> pipeline operator
 
     // HTTP Methods (for API decl)
     MTPSCRIPT_TOKEN_GET,

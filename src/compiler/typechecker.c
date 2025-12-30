@@ -30,6 +30,12 @@ static mtpscript_error_t *typecheck_expression(mtpscript_expression_t *expr, mtp
         case MTPSCRIPT_EXPR_STRING_LITERAL:
             *type_out = mtpscript_type_new(MTPSCRIPT_TYPE_STRING);
             break;
+        case MTPSCRIPT_EXPR_BOOL_LITERAL:
+            *type_out = mtpscript_type_new(MTPSCRIPT_TYPE_BOOL);
+            break;
+        case MTPSCRIPT_EXPR_DECIMAL_LITERAL:
+            *type_out = mtpscript_type_new(MTPSCRIPT_TYPE_DECIMAL);
+            break;
         case MTPSCRIPT_EXPR_VARIABLE: {
             mtpscript_type_t *type = mtpscript_hash_get(env->env, mtpscript_string_cstr(expr->data.variable.name));
             if (!type) {
