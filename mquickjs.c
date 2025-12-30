@@ -1132,13 +1132,11 @@ static JSValue js_alloc_int64(JSContext *ctx, int64_t val)
 
 JSValue JS_NewInt64(JSContext *ctx, int64_t val)
 {
-    JSValue v;
     if (likely(int64_is_short_int(val))) {
-        v = JS_NewShortInt(val);
+        return JS_NewShortInt(val);
     } else {
-        v = js_alloc_int64(ctx, val);
+        return js_alloc_int64(ctx, val);
     }
-    return v;
 }
 
 JSValue JS_NewInt32(JSContext *ctx, int32_t val)
@@ -1154,7 +1152,6 @@ JSValue JS_NewUint32(JSContext *ctx, uint32_t val)
 JSValue JS_NewDecimal(JSContext *ctx, const char *value_str, int32_t scale)
 {
     JSDecimal *d;
-    JSValue val;
 
     /* Validate inputs */
     if (!value_str || scale < 0 || scale > 28) {
