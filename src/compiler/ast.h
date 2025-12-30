@@ -37,6 +37,7 @@ typedef enum {
     MTPSCRIPT_TYPE_RESULT,
     MTPSCRIPT_TYPE_LIST,
     MTPSCRIPT_TYPE_MAP,
+    MTPSCRIPT_TYPE_UNION,
     MTPSCRIPT_TYPE_CUSTOM
 } mtpscript_type_kind_t;
 
@@ -47,6 +48,8 @@ typedef struct mtpscript_type_t {
     struct mtpscript_type_t *key;   // For Map
     struct mtpscript_type_t *value; // For Map
     struct mtpscript_type_t *error; // For Result error type
+    mtpscript_vector_t *union_variants; // For Union - vector of mtpscript_string_t*
+    mtpscript_string_t *union_hash;     // SHA-256 hash of union variants for exhaustiveness checking
 } mtpscript_type_t;
 
 // Expressions

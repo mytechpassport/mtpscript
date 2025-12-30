@@ -8,10 +8,46 @@
 
 #include "typechecker.h"
 #include <string.h>
+#include <stdio.h>
 
 // Forward declarations
 static void record_effect_usage(mtpscript_type_env_t *env, const char *effect);
 static mtpscript_error_t *validate_map_key_type(mtpscript_type_t *key_type);
+static mtpscript_error_t *check_union_exhaustiveness(mtpscript_type_t *union_type, mtpscript_vector_t *match_arms);
+
+// Check union exhaustiveness for match expressions
+static mtpscript_error_t *check_union_exhaustiveness(mtpscript_type_t *union_type, mtpscript_vector_t *match_arms) {
+    if (union_type->kind != MTPSCRIPT_TYPE_UNION) {
+        return NULL; // Not a union type, no exhaustiveness checking needed
+    }
+
+    // Create a set of covered variants
+    mtpscript_hash_t *covered_variants = mtpscript_hash_new();
+
+    // Collect all patterns from match arms
+    for (size_t i = 0; i < match_arms->size; i++) {
+        mtpscript_match_arm_t *arm = match_arms->items[i];
+        const char *pattern = mtpscript_string_cstr(arm->pattern);
+        mtpscript_hash_set(covered_variants, pattern, (void*)1);
+    }
+
+    // Check that all union variants are covered
+    for (size_t i = 0; i < union_type->union_variants->size; i++) {
+        mtpscript_string_t *variant = union_type->union_variants->items[i];
+        if (!mtpscript_hash_get(covered_variants, mtpscript_string_cstr(variant))) {
+            mtpscript_hash_free(covered_variants);
+            mtpscript_error_t *error = MTPSCRIPT_MALLOC(sizeof(mtpscript_error_t));
+            char msg[256];
+            sprintf(msg, "Non-exhaustive match: union variant '%s' not covered", mtpscript_string_cstr(variant));
+            error->message = mtpscript_string_from_cstr(msg);
+            error->location = (mtpscript_location_t){0, 0, "union_exhaustiveness_check"};
+            return error;
+        }
+    }
+
+    mtpscript_hash_free(covered_variants);
+    return NULL;
+}
 
 mtpscript_type_env_t *mtpscript_type_env_new(void) {
     mtpscript_type_env_t *env = MTPSCRIPT_MALLOC(sizeof(mtpscript_type_env_t));
@@ -89,9 +125,11 @@ static mtpscript_error_t *typecheck_expression(mtpscript_expression_t *expr, mtp
             mtpscript_error_t *scrutinee_error = typecheck_expression(expr->data.match.scrutinee, env, &scrutinee_type);
             if (scrutinee_error) return scrutinee_error;
 
-            // For exhaustive matches, we would check that all possible values are covered
-            // For now, just type check all arms and ensure they have compatible return types
+            // Check union exhaustiveness if scrutinee is a union type
+            mtpscript_error_t *exhaustive_error = check_union_exhaustiveness(scrutinee_type, expr->data.match.arms);
+            if (exhaustive_error) return exhaustive_error;
 
+            // Type check all arms and ensure they have compatible return types
             mtpscript_type_t *arm_type = NULL;
             for (size_t i = 0; i < expr->data.match.arms->size; i++) {
                 mtpscript_match_arm_t *arm = mtpscript_vector_get(expr->data.match.arms, i);

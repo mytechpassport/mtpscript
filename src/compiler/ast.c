@@ -8,6 +8,8 @@
 
 #include "ast.h"
 #include <string.h>
+#include <stdio.h>
+#include <openssl/sha.h>
 
 mtpscript_type_t *mtpscript_type_new(mtpscript_type_kind_t kind) {
     mtpscript_type_t *type = MTPSCRIPT_MALLOC(sizeof(mtpscript_type_t));
@@ -16,6 +18,61 @@ mtpscript_type_t *mtpscript_type_new(mtpscript_type_kind_t kind) {
     type->inner = NULL;
     type->key = NULL;
     type->value = NULL;
+    type->error = NULL;
+    type->union_variants = NULL;
+    type->union_hash = NULL;
+    return type;
+}
+
+// Create a union type with content hashing for exhaustiveness checking
+mtpscript_type_t *mtpscript_type_union_new(mtpscript_vector_t *variants) {
+    mtpscript_type_t *type = mtpscript_type_new(MTPSCRIPT_TYPE_UNION);
+    type->union_variants = variants;
+
+    // Generate SHA-256 hash of union variants for exhaustiveness checking
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+
+    // Sort variants alphabetically for deterministic hashing
+    mtpscript_vector_t *sorted_variants = mtpscript_vector_new();
+    for (size_t i = 0; i < variants->size; i++) {
+        mtpscript_string_t *variant = mtpscript_vector_get(variants, i);
+        mtpscript_vector_push(sorted_variants, variant);
+    }
+
+    // Simple bubble sort for determinism (small number of variants expected)
+    for (size_t i = 0; i < sorted_variants->size; i++) {
+        for (size_t j = i + 1; j < sorted_variants->size; j++) {
+            mtpscript_string_t *a = sorted_variants->items[i];
+            mtpscript_string_t *b = sorted_variants->items[j];
+            if (strcmp(mtpscript_string_cstr(a), mtpscript_string_cstr(b)) > 0) {
+                // Swap pointers
+                sorted_variants->items[i] = b;
+                sorted_variants->items[j] = a;
+            }
+        }
+    }
+
+    // Hash the sorted variant names
+    for (size_t i = 0; i < sorted_variants->size; i++) {
+        mtpscript_string_t *variant = sorted_variants->items[i];
+        SHA256_Update(&sha256, mtpscript_string_cstr(variant), variant->length);
+        SHA256_Update(&sha256, "|", 1); // Separator
+    }
+
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_Final(hash, &sha256);
+
+    // Convert to hex string
+    char hex_hash[SHA256_DIGEST_LENGTH * 2 + 1];
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        sprintf(hex_hash + (i * 2), "%02x", hash[i]);
+    }
+    hex_hash[SHA256_DIGEST_LENGTH * 2] = '\0';
+
+    type->union_hash = mtpscript_string_from_cstr(hex_hash);
+    mtpscript_vector_free(sorted_variants);
+
     return type;
 }
 

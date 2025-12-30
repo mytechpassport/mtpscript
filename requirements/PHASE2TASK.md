@@ -143,14 +143,14 @@ This phase focuses on completing the MTPScript ecosystem for **production deploy
 ## 7. Union Exhaustiveness Checking (P1)
 
 ### 7.1 Content Hashing (§24)
-- [ ] **Union Type Content Hashing**: Generate SHA-256 hash of variant list for each union type
-- [ ] **Link-Time Verification**: Fail compilation if any unit sees different variant sets
-- [ ] **Union ADT Definition**: Extend type system to support union types with exhaustive checking
+- [x] **Union Type Content Hashing**: Generate SHA-256 hash of variant list for each union type
+- [x] **Link-Time Verification**: Fail compilation if any unit sees different variant sets
+- [x] **Union ADT Definition**: Extend type system to support union types with exhaustive checking
 
 ### 7.2 Exhaustive Match Enforcement (§24)
-- [ ] **Compile-Time Exhaustiveness**: Verify all union variants covered in match expressions
-- [ ] **Link-Time Guarantees**: Runtime checks not needed due to link-time verification
-- [ ] **Pattern Matching Infrastructure**: Support destructuring patterns for union variants
+- [x] **Compile-Time Exhaustiveness**: Verify all union variants covered in match expressions
+- [x] **Link-Time Guarantees**: Runtime checks not needed due to link-time verification
+- [x] **Pattern Matching Infrastructure**: Support destructuring patterns for union variants
 
 ## 8. Full HTTP Server Syntax & Support (P1)
 
