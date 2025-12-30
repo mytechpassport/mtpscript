@@ -63,7 +63,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 - [x] **AWS Lambda**: Custom runtime with sub-millisecond VM cloning, ECDSA verification, and per-request effect injection (§14).
 - [x] **Deterministic I/O**: Cache response bytes keyed by `(seed, contId)` with no visible event loop (§7-a).
 - [x] **Memory Protection**: Secure memory wipe on sensitive pages and zero cross-request state (§22).
-- [ ] **Reproducible Builds**: Containerized build image pinned by SHA-256 with signed `build-info.json` (§18).
+- [x] **Reproducible Builds**: Containerized build image pinned by SHA-256 with signed `build-info.json` (§18).
 
 ## Acceptance Criteria (v5.1)
 - [x] Zero Node.js or npm dependencies in the entire toolchain.
@@ -96,7 +96,7 @@ This phase involves building the **MTPScript** language toolchain on top of the 
 - [x] **Enhanced OpenAPI Generator**: Deterministic ordering and $ref folding support.
 - [x] **Map Key Constraints**: Primitive types only with deterministic ordering (Tag → Hash → CBOR).
 - [x] **Memory Protection**: Secure memory wipe and zero cross-request state.
-- [x] **Reproducible Builds**: Signed build-info.json with SHA-256 pinned container images.
+- [x] **Reproducible Builds**: Containerized build image pinned by SHA-256 with signed `build-info.json` (§18).
 - [x] **JavaScript Lowering**: Deterministic α-equivalent JS subset generation.
 - [x] **Exhaustive Matches**: AST infrastructure for match expressions and pattern matching.
 - [x] **Module System**: Git-hash pinned imports with tag verification.

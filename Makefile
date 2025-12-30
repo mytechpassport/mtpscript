@@ -185,4 +185,15 @@ clean-git:
 	git add .
 	@echo "Run 'git status' to see what files were removed from git tracking"
 
+# Reproducible builds (§18) - Containerized build with SHA-256 pinned image
+docker-build: Dockerfile
+	docker build -t mtpscript:reproducible .
+	docker run --rm mtpscript:reproducible cat build-info.json > build-info.json
+
+docker-clean:
+	docker rmi mtpscript:reproducible || true
+
+reproducible-build: docker-build
+	@echo "Reproducible build completed. Build info saved to build-info.json"
+
 -include $(wildcard *.d)
