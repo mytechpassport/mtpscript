@@ -27,7 +27,7 @@ endif
 
 HOST_CC=gcc
 CC=$(CROSS_PREFIX)gcc
-CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math
+CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include
 HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math
 ifdef CONFIG_WERROR
 CFLAGS+=-Werror
@@ -81,7 +81,7 @@ TEST_PROGS=dtoa_test libm_test
 all: $(PROGS)
 
 MQJS_OBJS=mqjs.o readline_tty.o readline.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_errors.o dtoa.o libm.o cutils.o
-LIBS=-lm
+LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto
 
 mqjs$(EXE): $(MQJS_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)

@@ -3,6 +3,11 @@
  */
 
 #include <string.h>
+#include <openssl/evp.h>
+#include <openssl/ecdsa.h>
+#include <openssl/sha.h>
+#include <openssl/ec.h>
+#include <openssl/bn.h>
 #include "mquickjs_crypto.h"
 
 /* Embedded public key - in production this would be compiled in */
@@ -18,36 +23,69 @@ const ECDSAPublicKey mtpscript_public_key = {
           0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F}
 };
 
-/* Verify ECDSA-P256 signature
- * TODO: Implement proper ECDSA-P256 verification using OpenSSL or similar
- * For now, this is a placeholder that accepts any valid signature format
- */
+/* Verify ECDSA-P256 signature using OpenSSL */
 JS_BOOL JS_VerifySnapshotSignature(const uint8_t *data, size_t data_len,
                                    const uint8_t *signature, size_t sig_len,
                                    const ECDSAPublicKey *pubkey) {
+    int ret = 0;
+    EC_KEY *ec_key = NULL;
+    EC_GROUP *group = NULL;
+    BIGNUM *x = NULL;
+    BIGNUM *y = NULL;
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    ECDSA_SIG *ecdsa_sig = NULL;
+    BIGNUM *r = NULL;
+    BIGNUM *s = NULL;
+
     /* Basic validation */
-    if (!data || !signature || !pubkey || data_len == 0) {
+    if (!data || !signature || !pubkey || data_len == 0 || sig_len != 64) {
         return 0;
     }
 
-    /* Check signature format - ECDSA-P256 signatures are typically 64 bytes (r,s) */
-    if (sig_len != 64) {
-        return 0;
-    }
+    /* Create EC key for P-256 curve */
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    if (!group) goto cleanup;
 
-    /* TODO: Implement actual ECDSA-P256 verification
-     *
-     * Steps would be:
-     * 1. Hash the data with SHA-256
-     * 2. Verify the signature against the hash using the public key
-     * 3. Return 1 if valid, 0 if invalid
-     *
-     * For now, return 1 (accept) to allow the system to work
-     */
+    ec_key = EC_KEY_new();
+    if (!ec_key) goto cleanup;
 
-    /* Placeholder: accept all signatures in development */
-    /* In production, this would be replaced with proper crypto */
-    return 1;
+    if (!EC_KEY_set_group(ec_key, group)) goto cleanup;
+
+    /* Set public key from provided coordinates */
+    x = BN_bin2bn(pubkey->x, 32, NULL);
+    y = BN_bin2bn(pubkey->y, 32, NULL);
+    if (!x || !y) goto cleanup;
+
+    if (!EC_KEY_set_public_key_affine_coordinates(ec_key, x, y)) goto cleanup;
+
+    /* Hash the data with SHA-256 */
+    SHA256(data, data_len, hash);
+
+    /* Parse signature - ECDSA-P256 uses DER format, but we expect raw r,s */
+    /* For simplicity, assume signature is 64 bytes: r(32) + s(32) */
+    r = BN_bin2bn(signature, 32, NULL);
+    s = BN_bin2bn(signature + 32, 32, NULL);
+    if (!r || !s) goto cleanup;
+
+    ecdsa_sig = ECDSA_SIG_new();
+    if (!ecdsa_sig) goto cleanup;
+
+    if (!ECDSA_SIG_set0(ecdsa_sig, r, s)) goto cleanup;
+    r = s = NULL; /* Ownership transferred */
+
+    /* Verify the signature */
+    ret = ECDSA_do_verify(hash, SHA256_DIGEST_LENGTH, ecdsa_sig, ec_key);
+
+cleanup:
+    if (ecdsa_sig) ECDSA_SIG_free(ecdsa_sig);
+    if (r) BN_free(r);
+    if (s) BN_free(s);
+    if (x) BN_free(x);
+    if (y) BN_free(y);
+    if (ec_key) EC_KEY_free(ec_key);
+    if (group) EC_GROUP_free(group);
+
+    return ret == 1 ? 1 : 0;
 }
 
 /* Load and verify snapshot with signature */

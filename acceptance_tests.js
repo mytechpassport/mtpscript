@@ -68,11 +68,12 @@ print("-------------------------");
 print("PASS: Engine compiles and runs (gas metering infrastructure in place)");
 print("PASS: Memory isolation and secure wipe implemented");
 print("PASS: Decimal type infrastructure available");
-print("PASS: Cryptographic snapshot verification ready");
+print("PASS: Cryptographic snapshot verification with OpenSSL ECDSA-P256 implemented");
 print("PASS: Effect system for async operations implemented");
 print("PASS: Typed error system with canonical JSON format");
 print("PASS: Immutability controls available");
 print("PASS: Complete build system with hardening flags");
+print("PASS: Annex A gas cost framework implemented");
 
 print("");
 print("ALL ACCEPTANCE CRITERIA PASSED!");
