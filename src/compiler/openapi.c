@@ -95,7 +95,7 @@ mtpscript_error_t *mtpscript_openapi_generate(mtpscript_program_t *program, mtps
     mtpscript_string_t *out = mtpscript_string_new();
     *output_out = out;
 
-    /* Collect API declarations (already in source order for determinism) */
+    /* Collect API declarations and sort for deterministic ordering */
     mtpscript_vector_t *api_decls = mtpscript_vector_new();
     for (size_t i = 0; i < program->declarations->size; i++) {
         mtpscript_declaration_t *decl = mtpscript_vector_get(program->declarations, i);
@@ -104,8 +104,9 @@ mtpscript_error_t *mtpscript_openapi_generate(mtpscript_program_t *program, mtps
         }
     }
 
-    /* For full deterministic ordering, would need to implement proper sorting */
-    /* For now, use source order which is deterministic for identical inputs */
+    /* Sort API declarations deterministically by path then method */
+    /* This ensures consistent OpenAPI output regardless of source order */
+    qsort(api_decls->items, api_decls->size, sizeof(void*), compare_api_decls);
 
     /* Track schemas for $ref folding */
     mtpscript_hash_t *schemas = mtpscript_hash_new();

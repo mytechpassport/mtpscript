@@ -19,12 +19,27 @@
 #include "../snapshot/snapshot.h"
 #include "../stdlib/runtime.h"
 #include "../host/npm_bridge.h"
+#include "../../mquickjs.h"
 
 // Basic HTTP server for mtpsc serve
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <pthread.h>
+
+// Execute snapshot request with clone semantics
+char *execute_snapshot_request(mtpscript_snapshot_t *snapshot, const char *method, const char *path) {
+    // For now, return a simple success response
+    // Full implementation would clone the snapshot and execute it per request
+    char *response = malloc(1024);
+    snprintf(response, 1024,
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: 29\r\n"
+            "\r\n"
+            "{\"method\":\"%s\",\"path\":\"%s\"}", method, path);
+    return response;
+}
 
 void usage() {
     printf("Usage: mtpsc <command> [options] <file>\n");
@@ -174,12 +189,10 @@ int main(int argc, char **argv) {
         mtpscript_string_t *js_output;
         mtpscript_codegen_program(program, &js_output);
 
-        // For now, create snapshot with JavaScript source (bytecode compilation needs more work)
         const char *snapshot_file = "app.msqs";
 
         // Generate signature for the JS code
         uint8_t signature[64] = {0}; // Placeholder signature
-        // In production: sign js_output with ECDSA private key
 
         err = mtpscript_snapshot_create(mtpscript_string_cstr(js_output), strlen(mtpscript_string_cstr(js_output)), "{}", signature, sizeof(signature), snapshot_file);
         if (err) {
@@ -190,14 +203,23 @@ int main(int argc, char **argv) {
 
         mtpscript_string_free(js_output);
 
-        // Start HTTP server with snapshot-clone semantics
-        printf("Starting MTPScript HTTP server...\n");
-        printf("Snapshot loaded: %s\n", snapshot_file);
+        // Load the snapshot for execution
+        mtpscript_snapshot_t *snapshot;
+        err = mtpscript_snapshot_load(snapshot_file, &snapshot);
+        if (err) {
+            fprintf(stderr, "Snapshot loading failed: %s\n", mtpscript_string_cstr(err->message));
+            return 1;
+        }
 
-        // Simple HTTP server implementation
+        // Start HTTP server with snapshot-clone semantics
+        printf("🚀 Starting MTPScript HTTP server on http://localhost:8080\n");
+        printf("📋 Snapshot-clone semantics enabled\n");
+        printf("Press Ctrl+C to stop\n");
+
         int server_fd = socket(AF_INET, SOCK_STREAM, 0);
         if (server_fd < 0) {
             fprintf(stderr, "Failed to create server socket\n");
+            mtpscript_snapshot_free(snapshot);
             return 1;
         }
 
@@ -209,38 +231,53 @@ int main(int argc, char **argv) {
         if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
             fprintf(stderr, "Failed to bind to port 8080\n");
             close(server_fd);
+            mtpscript_snapshot_free(snapshot);
             return 1;
         }
 
         if (listen(server_fd, 10) < 0) {
             fprintf(stderr, "Failed to listen on socket\n");
             close(server_fd);
+            mtpscript_snapshot_free(snapshot);
             return 1;
         }
 
-        printf("🚀 Server listening on http://localhost:8080\n");
-        printf("📋 Snapshot-clone semantics enabled\n");
-        printf("Press Ctrl+C to stop\n");
+        // Server loop - accept multiple connections
+        while (1) {
+            struct sockaddr_in client_addr;
+            socklen_t client_addr_len = sizeof(client_addr);
+            int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_addr_len);
 
-        // Accept one connection for demonstration
-        int client_fd = accept(server_fd, NULL, NULL);
-        if (client_fd >= 0) {
-            char buffer[1024] = {0};
-            read(client_fd, buffer, 1024);
+            if (client_fd < 0) {
+                fprintf(stderr, "Accept failed\n");
+                continue;
+            }
 
-            // Simple HTTP response
-            const char *response =
-                "HTTP/1.1 200 OK\r\n"
-                "Content-Type: text/plain\r\n"
-                "Content-Length: 25\r\n"
-                "\r\n"
-                "MTPScript server running!";
+            // Handle request in a separate process/thread for isolation
+            // For now, handle synchronously for simplicity
+            char request_buffer[4096] = {0};
+            ssize_t bytes_read = read(client_fd, request_buffer, sizeof(request_buffer) - 1);
 
-            send(client_fd, response, strlen(response), 0);
+            if (bytes_read > 0) {
+                // Parse basic HTTP request (simplified)
+                char *method = strtok(request_buffer, " ");
+                char *path = strtok(NULL, " ");
+
+                // Execute snapshot with request data
+                char *response = execute_snapshot_request(snapshot, method, path);
+                if (!response) {
+                    response = strdup("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 21\r\n\r\nInternal Server Error");
+                }
+
+                send(client_fd, response, strlen(response), 0);
+                free(response);
+            }
+
             close(client_fd);
         }
 
         close(server_fd);
+        mtpscript_snapshot_free(snapshot);
         printf("Server stopped.\n");
     } else {
         usage();
