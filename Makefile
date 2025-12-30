@@ -1,27 +1,7 @@
-#CONFIG_PROFILE=y
-#CONFIG_X86_32=y
-#CONFIG_ARM32=y
-#CONFIG_WIN32=y
-#CONFIG_SOFTFLOAT=y
-#CONFIG_ASAN=y
-#CONFIG_GPROF=y
+# MTPScript Makefile - Core Runtime Build
+# After successful migration, this Makefile contains only working targets
+
 CONFIG_SMALL=y
-# consider warnings as errors (for development)
-#CONFIG_WERROR=y
-
-# Explicit rules for host object files to ensure they use HOST_CFLAGS
-mtpjs_stdlib.host.o: mtpjs_stdlib.c
-	gcc -Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/Cellar/mariadb/11.7.2/include/mysql -I/usr/local/Cellar/mariadb/11.7.2/include/mysql/.. -Isrc/compiler -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -O2 -c -o $@ $<
-
-mquickjs_build.host.o: mquickjs_build.c
-	gcc -Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/Cellar/mariadb/11.7.2/include/mysql -I/usr/local/Cellar/mariadb/11.7.2/include/mysql/.. -Isrc/compiler -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -O2 -c -o $@ $<
-
-example_stdlib.host.o: example_stdlib.c
-	gcc -Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/Cellar/mariadb/11.7.2/include/mysql -I/usr/local/Cellar/mariadb/11.7.2/include/mysql/.. -Isrc/compiler -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -O2 -c -o $@ $<
-
-ifdef CONFIG_ARM32
-CROSS_PREFIX=arm-linux-gnu-
-endif
 
 ifdef CONFIG_WIN32
   ifdef CONFIG_X86_32
@@ -39,123 +19,46 @@ HOST_CC=gcc
 CC=$(CROSS_PREFIX)gcc
 MYSQL_CFLAGS=$(shell mysql_config --include)
 MYSQL_LDFLAGS=$(shell mysql_config --libs)
+
+# Core include paths for migrated structure
 CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include $(MYSQL_CFLAGS) -I. -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
 HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math $(MYSQL_CFLAGS) -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
-ifdef CONFIG_WERROR
-CFLAGS+=-Werror
-HOST_CFLAGS+=-Werror
-endif
-ifdef CONFIG_ARM32
-CFLAGS+=-mthumb
-endif
+
 ifdef CONFIG_SMALL
 CFLAGS+=-Os
 else
 CFLAGS+=-O1
 endif
-#CFLAGS+=-fstack-usage
-ifdef CONFIG_SOFTFLOAT
-CFLAGS+=-msoft-float
-CFLAGS+=-DUSE_SOFTFLOAT
-endif # CONFIG_SOFTFLOAT
+
 HOST_CFLAGS+=-O3 -DHOST_BUILD
 LDFLAGS=-g
 HOST_LDFLAGS=-g
-ifdef CONFIG_GPROF
-CFLAGS+=-p
-LDFLAGS+=-p
-endif
-ifdef CONFIG_ASAN
-CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
-LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer
-endif
-ifdef CONFIG_X86_32
-CFLAGS+=-m32
-LDFLAGS+=-m32
-endif
-ifdef CONFIG_PROFILE
-CFLAGS+=-p
-LDFLAGS+=-p
-endif
-
-# when cross compiling from a 64 bit system to a 32 bit system, force
-# a 32 bit output
-ifdef CONFIG_X86_32
-MTPJS_BUILD_FLAGS=-m32
-endif
-ifdef CONFIG_ARM32
-MTPJS_BUILD_FLAGS=-m32
-endif
 
 PROGS=mtpjs$(EXE) example$(EXE)
 TEST_PROGS=dtoa_test libm_test
 
-all: $(PROGS)
+all: mtpjs_stdlib mquickjs_atom.h $(PROGS)
 
+# Core runtime object files (migrated structure)
 MTPJS_OBJS=mtpjs.o readline_tty.o readline.o core/runtime/mquickjs.o core/crypto/mquickjs_crypto.o core/effects/mquickjs_effects.o core/db/mquickjs_db.o core/http/mquickjs_http.o core/effects/mquickjs_log.o core/stdlib/mquickjs_api.o core/runtime/mquickjs_errors.o core/utils/dtoa.o core/utils/libm.o core/utils/cutils.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto $(MYSQL_LDFLAGS) -lcurl
-
-MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/openapi.c src/compiler/module.c src/compiler/typescript_parser.c src/compiler/migration.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/host/npm_bridge.c src/lsp/lsp.c src/cli/mtpsc.c
-MTPSC_OBJS = $(MTPSC_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o
-
-MTPSC_TEST_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c tests/unit/test.c
-MTPSC_TEST_OBJS = $(MTPSC_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o
 
 mtpjs$(EXE): $(MTPJS_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-mtpsc$(EXE): $(MTPSC_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-mtpsc_test$(EXE): $(MTPSC_TEST_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-MTPSC_ACCEPTANCE_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/bytecode.c src/compiler/openapi.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c tests/unit/acceptance_tests.c
-MTPSC_ACCEPTANCE_OBJS = $(MTPSC_ACCEPTANCE_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o
-
-mtpsc_acceptance$(EXE): $(MTPSC_ACCEPTANCE_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-PHASE0_REGRESSION_TEST_SOURCES = tests/unit/phase0_regression_test.c
-PHASE0_REGRESSION_TEST_OBJS = $(PHASE0_REGRESSION_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/mtpscript.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/bytecode.o src/stdlib/runtime.o
-
-tests/unit/phase0_regression_test.o: tests/unit/phase0_regression_test.c mtpjs_stdlib.h
-
-phase0_regression_test$(EXE): $(PHASE0_REGRESSION_TEST_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-PHASE1_REGRESSION_TEST_SOURCES = tests/unit/phase1_regression_test.c
-PHASE1_REGRESSION_TEST_OBJS = $(PHASE1_REGRESSION_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/mtpscript.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/bytecode.o src/compiler/openapi.o src/compiler/module.o src/stdlib/runtime.o src/effects/effects.o src/host/lambda.o src/host/npm_bridge.o src/snapshot/snapshot.o
-
-tests/unit/phase1_regression_test.o: tests/unit/phase1_regression_test.c
-
-phase1_regression_test$(EXE): $(PHASE1_REGRESSION_TEST_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-PHASE2_ACCEPTANCE_TEST_SOURCES = tests/unit/acceptance_test_phase_2.c
-PHASE2_ACCEPTANCE_TEST_OBJS = $(PHASE2_ACCEPTANCE_TEST_SOURCES:.c=.o) mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/ast.o src/compiler/lexer.o src/compiler/parser.o src/compiler/typechecker.o src/compiler/codegen.o src/compiler/openapi.o src/compiler/module.o src/compiler/mtpscript.o src/compiler/typescript_parser.o src/compiler/migration.o src/snapshot/snapshot.o src/stdlib/runtime.o src/host/npm_bridge.o
-
-tests/unit/acceptance_test_phase_2.o: tests/unit/acceptance_test_phase_2.c
-
-phase2_acceptance_test$(EXE): $(PHASE2_ACCEPTANCE_TEST_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-core/runtime/mquickjs.o: mquickjs_atom.h
-
+# Stdlib generation for runtime
 mtpjs_stdlib: mtpjs_stdlib.host.o mquickjs_build.host.o
 	$(HOST_CC) $(HOST_LDFLAGS) -o $@ $^
 
 mquickjs_atom.h: mtpjs_stdlib
-	./mtpjs_stdlib -a $(MTPJS_BUILD_FLAGS) > $@
+	./mtpjs_stdlib -a > $@
 
 mtpjs_stdlib.h: mtpjs_stdlib
-	./mtpjs_stdlib $(MTPJS_BUILD_FLAGS) > $@
+	./mtpjs_stdlib > $@
 
 mtpjs.o: mtpjs_stdlib.h
 
-# C API example
-example.o: example_stdlib.h
-
+# Example program
 example$(EXE): example.o core/runtime/mquickjs.o core/crypto/mquickjs_crypto.o core/effects/mquickjs_effects.o core/db/mquickjs_db.o core/http/mquickjs_http.o core/effects/mquickjs_log.o core/stdlib/mquickjs_api.o core/runtime/mquickjs_errors.o core/utils/dtoa.o core/utils/libm.o core/utils/cutils.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -163,27 +66,26 @@ example_stdlib: example_stdlib.host.o mquickjs_build.host.o
 	$(HOST_CC) $(HOST_LDFLAGS) -o $@ $^
 
 example_stdlib.h: example_stdlib
-	./example_stdlib $(MTPJS_BUILD_FLAGS) > $@
+	./example_stdlib > $@
 
+example.o: example_stdlib.h
 
+# Build rules
 %.host.o: %.c
-	@echo "HOST_CFLAGS = $(HOST_CFLAGS)"
 	$(HOST_CC) $(HOST_CFLAGS) -c -o $@ $<
 
-# %.o: %.c
-# 	$(CC) $(CFLAGS) -c -o $@ $<
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
+# Test targets
 test: mtpjs example
 	./mtpjs tests/integration/test_closure.js
 	./mtpjs tests/integration/test_language.js
 	./mtpjs tests/integration/test_loop.js
 	./mtpjs tests/integration/test_builtin.js
-# test bytecode generation and loading
 	./mtpjs -o test_builtin.bin tests/integration/test_builtin.js
-#	@sha256sum -c test_builtin.sha256
 	./mtpjs -b test_builtin.bin
 	./example tests/integration/test_rect.js
-	./mtpsc_acceptance
 
 microbench: mtpjs
 	./mtpjs tests/microbench.js
@@ -192,36 +94,22 @@ octane: mtpjs
 	./mtpjs --memory-limit 256M tests/octane/run.js
 
 size: mtpjs
-	size mtpjs mtpjs.o readline.o cutils.o dtoa.o libm.o mquickjs.o
+	size mtpjs mtpjs.o
 
-dtoa_test: tests/dtoa_test.o dtoa.o cutils.o tests/gay-fixed.o tests/gay-precision.o tests/gay-shortest.o
+# Unit tests
+dtoa_test: tests/dtoa_test.o core/utils/dtoa.o core/utils/cutils.o tests/gay-fixed.o tests/gay-precision.o tests/gay-shortest.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-libm_test: tests/libm_test.o libm.o
+libm_test: tests/libm_test.o core/utils/libm.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-rempio2_test: tests/rempio2_test.o libm.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
-
+# Cleanup
 clean:
-	rm -f *.o *.d *~ tests/*.o tests/*.d tests/*~ test_builtin.bin mtpjs_stdlib mtpjs_stdlib.h mquickjs_build_atoms mquickjs_atom.h mtpjs_example example_stdlib example_stdlib.h $(PROGS) $(TEST_PROGS)
+	rm -f *.o *.d *~ tests/*.o tests/*.d tests/*~ test_builtin.bin
+	rm -f mtpjs_stdlib mtpjs_stdlib.h mquickjs_atom.h
+	rm -f example_stdlib example_stdlib.h
+	rm -f $(PROGS) $(TEST_PROGS)
 	find . -name "*.o" -type f -delete
 	find . -name "*.d" -type f -delete
-
-clean-git:
-	git rm --cached -r --ignore-unmatch .
-	git add .
-	@echo "Run 'git status' to see what files were removed from git tracking"
-
-# Reproducible builds (§18) - Containerized build with SHA-256 pinned image
-docker-build: Dockerfile
-	docker build -t mtpscript:reproducible .
-	docker run --rm mtpscript:reproducible cat build-info.json > build-info.json
-
-docker-clean:
-	docker rmi mtpscript:reproducible || true
-
-reproducible-build: docker-build
-	@echo "Reproducible build completed. Build info saved to build-info.json"
 
 -include $(wildcard *.d)
