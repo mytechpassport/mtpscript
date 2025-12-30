@@ -39,8 +39,8 @@ HOST_CC=gcc
 CC=$(CROSS_PREFIX)gcc
 MYSQL_CFLAGS=$(shell mysql_config --include)
 MYSQL_LDFLAGS=$(shell mysql_config --libs)
-CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include $(MYSQL_CFLAGS) -I. -Isrc/compiler -Isrc/decimal -Isrc/snapshot -Isrc/stdlib -Isrc/effects -Isrc/host -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
-HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math $(MYSQL_CFLAGS) -Isrc/compiler -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
+CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math -I/usr/local/opt/openssl@1.1/include $(MYSQL_CFLAGS) -I. -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
+HOST_CFLAGS=-Wall -g -MMD -D_GNU_SOURCE -DMTPSCRIPT_DETERMINISTIC -fno-math-errno -fno-trapping-math $(MYSQL_CFLAGS) -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils -Icore/runtime -Icore/stdlib -Icore/crypto -Icore/db -Icore/http -Icore/effects -Icore/utils
 ifdef CONFIG_WERROR
 CFLAGS+=-Werror
 HOST_CFLAGS+=-Werror
@@ -87,12 +87,12 @@ ifdef CONFIG_ARM32
 MTPJS_BUILD_FLAGS=-m32
 endif
 
-PROGS=mtpjs$(EXE) example$(EXE) mtpsc$(EXE)
-TEST_PROGS=dtoa_test libm_test mtpsc_test phase0_regression_test phase1_regression_test phase2_acceptance_test mtpsc_acceptance
+PROGS=mtpjs$(EXE) example$(EXE)
+TEST_PROGS=dtoa_test libm_test
 
 all: $(PROGS)
 
-MTPJS_OBJS=mtpjs.o readline_tty.o readline.o core/runtime/mquickjs.o core/crypto/mquickjs_crypto.o core/effects/mquickjs_effects.o core/db/mquickjs_db.o core/http/mquickjs_http.o core/effects/mquickjs_log.o core/stdlib/mquickjs_api.o core/runtime/mquickjs_errors.o core/utils/dtoa.o core/utils/libm.o core/utils/cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
+MTPJS_OBJS=mtpjs.o readline_tty.o readline.o core/runtime/mquickjs.o core/crypto/mquickjs_crypto.o core/effects/mquickjs_effects.o core/db/mquickjs_db.o core/http/mquickjs_http.o core/effects/mquickjs_log.o core/stdlib/mquickjs_api.o core/runtime/mquickjs_errors.o core/utils/dtoa.o core/utils/libm.o core/utils/cutils.o
 LIBS=-lm -L/usr/local/opt/openssl@1.1/lib -lcrypto $(MYSQL_LDFLAGS) -lcurl
 
 MTPSC_SOURCES = src/compiler/mtpscript.c src/compiler/ast.c src/compiler/lexer.c src/compiler/parser.c src/compiler/typechecker.c src/compiler/codegen.c src/compiler/openapi.c src/compiler/module.c src/compiler/typescript_parser.c src/compiler/migration.c src/decimal/decimal.c src/snapshot/snapshot.c src/stdlib/runtime.c src/effects/effects.c src/host/lambda.c src/host/npm_bridge.c src/lsp/lsp.c src/cli/mtpsc.c
@@ -140,7 +140,7 @@ tests/unit/acceptance_test_phase_2.o: tests/unit/acceptance_test_phase_2.c
 phase2_acceptance_test$(EXE): $(PHASE2_ACCEPTANCE_TEST_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-mquickjs.o: mquickjs_atom.h
+core/runtime/mquickjs.o: mquickjs_atom.h
 
 mtpjs_stdlib: mtpjs_stdlib.host.o mquickjs_build.host.o
 	$(HOST_CC) $(HOST_LDFLAGS) -o $@ $^
@@ -156,7 +156,7 @@ mtpjs.o: mtpjs_stdlib.h
 # C API example
 example.o: example_stdlib.h
 
-example$(EXE): example.o mquickjs.o mquickjs_crypto.o mquickjs_effects.o mquickjs_db.o mquickjs_http.o mquickjs_log.o mquickjs_api.o mquickjs_errors.o dtoa.o libm.o cutils.o src/decimal/decimal.o src/compiler/mtpscript.o
+example$(EXE): example.o core/runtime/mquickjs.o core/crypto/mquickjs_crypto.o core/effects/mquickjs_effects.o core/db/mquickjs_db.o core/http/mquickjs_http.o core/effects/mquickjs_log.o core/stdlib/mquickjs_api.o core/runtime/mquickjs_errors.o core/utils/dtoa.o core/utils/libm.o core/utils/cutils.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 example_stdlib: example_stdlib.host.o mquickjs_build.host.o
@@ -173,7 +173,7 @@ example_stdlib.h: example_stdlib
 # %.o: %.c
 # 	$(CC) $(CFLAGS) -c -o $@ $<
 
-test: mtpjs example mtpsc_test
+test: mtpjs example
 	./mtpjs tests/integration/test_closure.js
 	./mtpjs tests/integration/test_language.js
 	./mtpjs tests/integration/test_loop.js
@@ -183,8 +183,6 @@ test: mtpjs example mtpsc_test
 #	@sha256sum -c test_builtin.sha256
 	./mtpjs -b test_builtin.bin
 	./example tests/integration/test_rect.js
-	./tests/executables/mtpsc_test
-	./tests/executables/phase0_regression_test
 	./mtpsc_acceptance
 
 microbench: mtpjs

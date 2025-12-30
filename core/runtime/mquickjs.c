@@ -38,7 +38,7 @@
 #include "gas_costs.h"
 #include "mquickjs_effects.h"
 #include "mquickjs_errors.h"
-#include "src/decimal/decimal.h"
+#include "decimal.h"
 #include <openssl/sha.h>
 
 /* MTPScript Decimal type */
